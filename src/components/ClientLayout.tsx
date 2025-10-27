@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from "next-themes";
 import { Nav } from "../components/Nav";
+import Footer from "../components/Footer";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     >
       <Nav />
       <div className="pt-16">{children}</div>
+      <Footer />
     </ThemeProvider>
   );
 }
