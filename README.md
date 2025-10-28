@@ -84,6 +84,59 @@ Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, 
 - **Disciplina**: Regra de atendimento (afluência dinâmica).
 - As métricas ajudam a avaliar o desempenho, identificar gargalos e sugerir melhorias, como aumento de capacidade ou mudanças na sinalização.
 
+## Teoria Matemática
+
+Este aplicativo baseia-se na Teoria das Filas, especificamente no modelo M/M/1, onde as chegadas seguem um processo de Poisson (exponencial) e os tempos de serviço são exponenciais. O modelo assume um único servidor.
+
+### Fórmulas Principais
+
+- **λ (Taxa de Chegada)**: Calculada como o número total de chegadas dividido pelo tempo total de observação. Representa a taxa média de chegadas por unidade de tempo (segundos).
+
+$$
+λ = \frac{\text{Número de chegadas}}{\text{Tempo total}}
+$$
+
+- **Ts (Tempo Médio de Serviço)**: Simulado como 5 segundos neste aplicativo. Em um cenário real, seria calculado a partir dos dados medidos.
+
+$$
+Ts = \frac{1}{μ}
+$$
+
+Onde μ é a taxa de serviço.
+
+- **μ (Taxa de Serviço)**: Inversa do tempo médio de serviço.
+
+$$
+μ = \frac{1}{Ts}
+$$
+
+- **ρ (Utilização do Sistema)**: Fração do tempo que o servidor está ocupado. Deve ser menor que 1 para estabilidade.
+
+$$
+ρ = \frac{λ}{μ}
+$$
+
+- **Wq (Tempo Médio de Espera na Fila)**: Tempo médio que um cliente espera na fila antes de ser atendido.
+
+$$
+Wq = \frac{ρ}{μ (1 - ρ)}
+$$
+
+- **W (Tempo Médio Total no Sistema)**: Tempo médio que um cliente passa no sistema, incluindo espera e serviço.
+
+$$
+W = Wq + Ts
+$$
+
+### Interpretação dos Gráficos
+
+- **Comparação de Desempenho**: Compara Wq e Ts entre filas para identificar quais têm maiores tempos de espera relativos ao serviço.
+- **Distribuição da Espera**: Mostra a frequência de diferentes tempos de espera na fila para a fila com pior desempenho, ajudando a entender a variabilidade.
+- **Taxa de Chegada por Fila**: Visualiza λ para cada fila, indicando a carga de trabalho.
+- **Chegadas e Saídas Cumulativas**: Plota o número acumulado de chegadas e saídas ao longo do tempo, útil para detectar padrões ou desequilíbrios.
+
+Essas fórmulas assumem condições ideais; em aplicações reais, ajustes podem ser necessários para distribuições não-exponenciais.
+
 ## Estrutura do Projeto
 
 ```
