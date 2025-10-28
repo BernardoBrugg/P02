@@ -85,7 +85,7 @@ export default function Chronometers() {
         <div className="animate-fade-in">
           <TimestampCard />
         </div>
-        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-slide-in-left">
+        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-slide-in-left">
           Cronômetros
         </h1>
         <div
@@ -93,7 +93,7 @@ export default function Chronometers() {
           style={{ animationDelay: "0.2s" }}
         >
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
-            <div className="flex space-x-4 mb-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
               <input
                 type="text"
                 value={newQueue}

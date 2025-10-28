@@ -1,7 +1,7 @@
 "use client";
 
 import "katex/dist/katex.min.css";
-import { InlineMath } from "react-katex";
+import MathRenderer from "../../components/MathRenderer";
 import { useState, useEffect } from "react";
 import {
   BarChart,
@@ -33,10 +33,10 @@ function calculateMetrics(data: QueueRecord[]) {
   }, {} as Record<string, QueueRecord[]>);
 
   return Object.entries(queues).map(([queue, records]) => {
-    const totalTimes = records.map((r) => r.totalTime / 1000); // convert to seconds
+    const totalTimes = records.map((r) => r.totalTime / 1000);
     const W = totalTimes.reduce((a, b) => a + b, 0) / totalTimes.length;
-    const Ts = 5; // simulated service time
-    const Wq = Math.max(0, W - Ts); // ensure non-negative
+    const Ts = 5;
+    const Wq = Math.max(0, W - Ts);
     const arrivals = records
       .map((r) => new Date(r.arriving).getTime())
       .sort((a, b) => a - b);
@@ -44,7 +44,7 @@ function calculateMetrics(data: QueueRecord[]) {
     const avgInterArrival =
       interArrivals.length > 0
         ? interArrivals.reduce((a, b) => a + b, 0) / interArrivals.length / 1000
-        : 10; // default
+        : 10;
     const λ = 1 / avgInterArrival;
     const μ = 1 / Ts;
     const ρ = λ / μ;
@@ -67,12 +67,10 @@ export default function Dashboards() {
 
   const metrics = calculateMetrics(data);
 
-  // Sort data by arriving time
   const sortedData = [...data].sort(
     (a, b) => new Date(a.arriving).getTime() - new Date(b.arriving).getTime()
   );
 
-  // Cumulative data
   const cumData = sortedData.map((r, i) => {
     const time = new Date(r.arriving).toLocaleTimeString();
     const cumArriving = i + 1;
@@ -101,14 +99,12 @@ export default function Dashboards() {
 
   const worstQueue = metrics.reduce((a, b) => (a.Wq > b.Wq ? a : b));
 
-  // Data for bar chart: comparison of Wq and Ts
   const barData = metrics.map((m) => ({
     queue: m.queue,
     Wq: m.Wq,
     Ts: m.Ts,
   }));
 
-  // Data for histogram: Wq distribution for worst queue
   const wqValues = worstQueue.records.map((r) => {
     const totalTime = r.totalTime / 1000;
     return Math.max(0, totalTime - worstQueue.Ts);
@@ -123,11 +119,10 @@ export default function Dashboards() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-fade-in">
+        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-fade-in">
           Painéis de Desempenho
         </h1>
 
-        {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {metrics.map((m) => (
             <div
@@ -138,30 +133,30 @@ export default function Dashboards() {
                 {m.queue}
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
-                <InlineMath math="W" />: {m.W.toFixed(2)}s
+                <MathRenderer>W</MathRenderer>: {m.W.toFixed(2)}s
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
-                <InlineMath math="W_q" />: {m.Wq.toFixed(2)}s
+                <MathRenderer>W_q</MathRenderer>: {m.Wq.toFixed(2)}s
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
-                <InlineMath math="T_s" />: {m.Ts.toFixed(2)}s
+                <MathRenderer>T_s</MathRenderer>: {m.Ts.toFixed(2)}s
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
-                <InlineMath math="\\lambda" />: {m.λ.toFixed(2)} chegadas/s
+                <MathRenderer>\lambda</MathRenderer>: {m.λ.toFixed(2)}{" "}
+                chegadas/s
               </p>
               <p className="text-gray-600 dark:text-gray-300">
-                <InlineMath math="\\rho" />: {(m.ρ * 100).toFixed(2)}%
+                <MathRenderer>\rho</MathRenderer>: {(m.ρ * 100).toFixed(2)}%
               </p>
             </div>
           ))}
         </div>
 
-        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div>
             <h3 className="text-xl font-semibold text-accent mb-4 text-center">
-              Comparação de Desempenho: <InlineMath math="W_q" /> e{" "}
-              <InlineMath math="T_s" />
+              Comparação de Desempenho: <MathRenderer>W_q</MathRenderer> e{" "}
+              <MathRenderer>T_s</MathRenderer>
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData}>
@@ -177,7 +172,7 @@ export default function Dashboards() {
           </div>
           <div>
             <h3 className="text-xl font-semibold text-accent mb-4 text-center">
-              Distribuição da Espera: <InlineMath math="W_q" /> para{" "}
+              Distribuição da Espera: <MathRenderer>W_q</MathRenderer> para{" "}
               {worstQueue.queue}
             </h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -193,7 +188,7 @@ export default function Dashboards() {
           </div>
           <div>
             <h3 className="text-xl font-semibold text-accent mb-4 text-center">
-              Taxa de Chegada por Fila (<InlineMath math="\\lambda" />)
+              Taxa de Chegada por Fila (<MathRenderer>\lambda</MathRenderer>)
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={metrics.map((m) => ({ queue: m.queue, λ: m.λ }))}>
@@ -208,7 +203,6 @@ export default function Dashboards() {
           </div>
         </div>
 
-        {/* Time-based Chart */}
         <div className="mt-12">
           <h3 className="text-xl font-semibold text-accent mb-4 text-center">
             Chegadas e Saídas Cumulativas ao Longo do Tempo

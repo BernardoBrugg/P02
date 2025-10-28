@@ -126,18 +126,16 @@ export function Chronometer({
             {pendingClients.length}
           </span>
         </div>
-        {pendingClients.length > 0 && (
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600 dark:text-gray-400 font-medium">
-              Espera Atual:
-            </span>
-            <span className="text-xl font-mono text-orange-500 font-bold">
-              {formatTime(currentWait)}
-            </span>
-          </div>
-        )}
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600 dark:text-gray-400 font-medium">
+            Espera Atual:
+          </span>
+          <span className="text-xl font-mono text-orange-500 font-bold">
+            {pendingClients.length > 0 ? formatTime(currentWait) : '--'}
+          </span>
+        </div>
       </div>
-      <div className="flex space-x-4 justify-center">
+      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 justify-center">
         <button
           onClick={arriving}
           disabled={pendingClients.length > 0}

@@ -10,15 +10,15 @@ export default function Home() {
             alt="Logo do Aplicativo de Teoria de Filas"
             className="h-28 w-auto mx-auto mb-4 animate-fade-in rounded-2xl shadow-2xl ring-4 ring-orange-500/20 hover:scale-105 transition-transform duration-300"
           />
-          <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-6 animate-fade-in">
+          <h1 className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-6 animate-fade-in">
             Aplicativo de Teoria de Filas
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
             Analise sistemas de filas medindo tempos de chegada, visualizando
             dados e explorando painéis com gráficos e métricas importantes.
             Mergulhe no mundo da teoria de filas com precisão e elegância.
           </p>
-          <div className="flex justify-center space-x-4">
+          <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <Link
               href="/chronometers"
               className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-full font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
