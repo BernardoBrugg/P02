@@ -1,14 +1,25 @@
 import { InlineMath, BlockMath } from "react-katex";
 
 export default function MathRenderer({
-  children,
+  math,
   isBlock = false,
 }: {
-  children: string;
+  math: string;
   isBlock?: boolean;
 }) {
-  if (isBlock) {
-    return <BlockMath math={children} />;
+  const symbols: { [key: string]: string } = {
+    "\\lambda": "λ",
+    "\\mu": "μ",
+    "\\rho": "ρ",
+    L_q: "L<sub>q</sub>",
+    W_q: "W<sub>q</sub>",
+  };
+  const symbol = symbols[math];
+  if (symbol) {
+    return <span dangerouslySetInnerHTML={{ __html: symbol }} />;
   }
-  return <InlineMath math={children} />;
+  if (isBlock) {
+    return <BlockMath math={math} />;
+  }
+  return <InlineMath math={math} />;
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Papa from "papaparse";
 
-interface Record {
+interface QueueRecord {
   queue: string;
+  type: "arrival" | "service";
   timestamp: string;
   totalTime: number;
   element: number;
@@ -12,8 +13,29 @@ interface Record {
   exiting: string;
 }
 
+interface LinkedItem {
+  customer: number;
+  arrivalTime: number;
+  serviceTime: number;
+  interarrival: number;
+}
+
+type QueueCalculations =
+  | {
+      lambda: number;
+      mu: number;
+      rho: number;
+      P0: number;
+      Pn: number[];
+      L: number;
+      Lq: number;
+      W: number;
+      Wq: number;
+    }
+  | { error: string };
+
 export default function Data() {
-  const [data, setData] = useState<Record[]>(() => {
+  const [data, setData] = useState<QueueRecord[]>(() => {
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem("queueing-data");
       return storedData ? JSON.parse(storedData) : [];
@@ -21,7 +43,103 @@ export default function Data() {
     return [];
   });
 
-  const saveData = (newData: Record[]) => {
+  const [selectedArrivalQueue, setSelectedArrivalQueue] = useState<
+    string | null
+  >(null);
+  const [selectedServiceQueues, setSelectedServiceQueues] = useState<string[]>(
+    []
+  );
+  const [tempArrivalQueue, setTempArrivalQueue] = useState<string>("");
+  const [tempServiceQueues, setTempServiceQueues] = useState<string[]>([]);
+  const [calculations, setCalculations] = useState<QueueCalculations | null>(
+    null
+  );
+  const [importQueue, setImportQueue] = useState("");
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !importQueue.trim()) {
+      alert("Selecione um arquivo e especifique o nome da fila.");
+      return;
+    }
+    Papa.parse(file, {
+      header: true,
+      delimiter: ";",
+      complete: (results) => {
+        const importedData: QueueRecord[] = (results.data as Record<string, string>[])
+          .map((row) => {
+            const tipo = row["Tipo"];
+            const timestamp = row["Carimbo de Data/Hora"];
+            const tempoTotalStr = row["Tempo Total"];
+            const elemento = parseInt(row["Elemento"]);
+            const chegando = row["Chegando"];
+            const saindo = row["Saindo"];
+            // Parse tempoTotal: remove 's' and parse float, convert to ms
+            const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
+            return {
+              queue: importQueue.trim(),
+              type: tipo as "arrival" | "service",
+              timestamp,
+              totalTime,
+              element: elemento,
+              arriving: chegando,
+              exiting: saindo === "--" ? "" : saindo,
+            };
+          })
+          .filter(
+            (r) =>
+              r.type && r.timestamp && !isNaN(r.element) && !isNaN(r.totalTime)
+          );
+        if (importedData.length === 0) {
+          alert("Nenhum dado válido encontrado no CSV.");
+          return;
+        }
+        saveData([...data, ...importedData]);
+        setImportQueue("");
+        event.target.value = ""; // Reset file input
+        alert(`${importedData.length} registros importados com sucesso.`);
+      },
+      error: (error) => {
+        alert("Erro ao importar CSV: " + error.message);
+      },
+    });
+  };
+
+  const linkedData = useMemo<LinkedItem[]>(() => {
+    if (selectedArrivalQueue && selectedServiceQueues.length > 0) {
+      const arrivals = data
+        .filter((r) => r.queue === selectedArrivalQueue && r.type === "arrival")
+        .sort(
+          (a, b) =>
+            new Date(a.arriving).getTime() - new Date(b.arriving).getTime()
+        );
+      const services = data.filter(
+        (r) => selectedServiceQueues.includes(r.queue) && r.type === "service"
+      );
+      const linked: LinkedItem[] = [];
+      arrivals.forEach((arrival) => {
+        const service = services.find((s) => s.element === arrival.element);
+        if (service) {
+          linked.push({
+            customer: arrival.element,
+            arrivalTime: new Date(arrival.arriving).getTime(),
+            serviceTime: service.totalTime,
+            interarrival: 0,
+          });
+        }
+      });
+      linked.sort((a, b) => a.arrivalTime - b.arrivalTime);
+      linked.forEach((item, index) => {
+        item.interarrival =
+          index === 0 ? 0 : item.arrivalTime - linked[index - 1].arrivalTime;
+      });
+      return linked;
+    } else {
+      return [];
+    }
+  }, [selectedArrivalQueue, selectedServiceQueues, data]);
+
+  const saveData = (newData: QueueRecord[]) => {
     setData(newData);
     localStorage.setItem("queueing-data", JSON.stringify(newData));
   };
@@ -31,136 +149,433 @@ export default function Data() {
     saveData(newData);
   };
 
+  const clearAllData = () => {
+    if (
+      confirm(
+        "Tem certeza de que deseja limpar todos os dados? Esta ação não pode ser desfeita."
+      )
+    ) {
+      saveData([]);
+    }
+  };
+
   const formatTime = (ms: number) => {
     const seconds = (ms / 1000).toFixed(2);
     return `${seconds}s`;
   };
 
-  const exportToCSV = () => {
-    const csvData = data.map((record) => ({
-      Fila: record.queue,
-      "Carimbo de Data/Hora": record.timestamp,
+  const formatDateWithMilliseconds = (dateString: string) => {
+    if (!dateString || dateString === "--") return "--";
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  };
+
+  const exportToCSV = (queueName: string) => {
+    const queueData = data.filter((record) => record.queue === queueName);
+    const csvData = queueData.map((record) => ({
+      Tipo: record.type,
+      "Carimbo de Data/Hora": formatDateWithMilliseconds(record.timestamp),
       "Tempo Total": formatTime(record.totalTime),
       Elemento: record.element,
-      Chegando: record.arriving,
-      Saindo: record.exiting,
+      Chegando: formatDateWithMilliseconds(record.arriving),
+      Saindo: record.exiting ? formatDateWithMilliseconds(record.exiting) : "--",
     }));
     const csv = Papa.unparse(csvData, { delimiter: ";" });
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "dados-filas.csv");
+    link.setAttribute("download", `dados-${queueName}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  const getLinkedStats = (linked: LinkedItem[]) => {
+    const totalRecords = linked.length;
+    const arrivalsCount = linked.length;
+    const servicesCount = linked.length;
+    const avgInterarrival =
+      linked.length > 1
+        ? linked.slice(1).reduce((sum, l) => sum + l.interarrival, 0) /
+          (linked.length - 1)
+        : 0;
+    const avgServiceTime =
+      linked.reduce((sum, l) => sum + l.serviceTime, 0) / linked.length;
+    return {
+      totalRecords,
+      arrivalsCount,
+      servicesCount,
+      avgInterarrival: avgInterarrival / 1000,
+      avgServiceTime: avgServiceTime / 1000,
+    };
+  };
+
+  const computeQueueParameters = (lambda: number, mu: number) => {
+    if (lambda === 0 || mu === 0) {
+      return { error: "Dados insuficientes para cálculo" };
+    }
+    const rho = lambda / mu;
+    if (rho >= 1) {
+      return { error: "Sistema instável (ρ >= 1)" };
+    }
+    const P0 = 1 - rho;
+    const Pn = Array.from({ length: 11 }, (_, n) =>
+      n === 0 ? P0 : rho ** n * P0
+    );
+    const L = rho / (1 - rho);
+    const Lq = rho ** 2 / (1 - rho);
+    const W = L / lambda;
+    const Wq = Lq / lambda;
+    return { lambda, mu, rho, P0, Pn, L, Lq, W, Wq };
+  };
+
+  const uniqueQueues = Array.from(new Set(data.map((record) => record.queue)));
+  const arrivalQueues = uniqueQueues.filter((q) =>
+    data.some((r) => r.queue === q && r.type === "arrival")
+  );
+  const serviceQueues = uniqueQueues.filter((q) =>
+    data.some((r) => r.queue === q && r.type === "service")
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-fade-in">
+        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-fade-in">
           Dados
         </h1>
-        <div className="mb-8 text-center animate-slide-in-left">
-          <button
-            onClick={exportToCSV}
-            className="px-8 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-teal-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
-          >
-            <svg
-              className="w-5 h-5 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Exportar para CSV
-          </button>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
+            Importar Dados
+          </h2>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <input
+              type="text"
+              value={importQueue}
+              onChange={(e) => setImportQueue(e.target.value)}
+              placeholder="Nome da fila"
+              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+            />
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImport}
+              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+            />
+          </div>
         </div>
+        {data.length > 0 && (
+          <div className="mb-8 text-center">
+            <button
+              onClick={clearAllData}
+              className="px-8 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              <svg
+                className="w-5 h-5 inline mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              Limpar Todos os Dados
+            </button>
+          </div>
+        )}
         {data.length === 0 ? (
-          <p className="text-center text-gray-600 dark:text-gray-400 animate-fade-in">
+          <p className="text-center text-[var(--text-secondary)] animate-fade-in">
             Nenhum dado registrado ainda.
           </p>
-        ) : (
-          <div
-            className="overflow-x-auto animate-fade-in"
-            style={{ animationDelay: "0.2s" }}
-          >
-            <table className="w-full border-collapse bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-              <thead className="bg-gradient-to-r from-orange-500 to-purple-600 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left font-semibold">Fila</th>
-                  <th className="px-6 py-4 text-left font-semibold">
-                    Carimbo de Data/Hora
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold">
-                    Tempo Total
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold">
-                    Elemento
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold">
-                    Chegando
-                  </th>
-                  <th className="px-6 py-4 text-left font-semibold">Saindo</th>
-                  <th className="px-6 py-4 text-left font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((record, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300"
-                  >
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {record.queue}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {new Date(record.timestamp).toLocaleString()}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {formatTime(record.totalTime)}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {record.element}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {new Date(record.arriving).toLocaleString()}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 text-gray-900 dark:text-white">
-                      {new Date(record.exiting).toLocaleString()}
-                    </td>
-                    <td className="border-t border-gray-200 dark:border-gray-700 px-6 py-4">
-                      <button
-                        onClick={() => deleteRecord(index)}
-                        className="text-red-500 hover:text-red-700 transition-colors duration-300 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </td>
+        ) : selectedArrivalQueue && selectedServiceQueues.length > 0 ? (
+          <div className="animate-fade-in">
+            <button
+              onClick={() => {
+                setSelectedArrivalQueue(null);
+                setSelectedServiceQueues([]);
+                setTempArrivalQueue("");
+                setTempServiceQueues([]);
+              }}
+              className="mb-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              ← Voltar
+            </button>
+            <div className="mb-4">
+              <button
+                onClick={() => exportToCSV(selectedArrivalQueue)}
+                className="px-8 py-3 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white rounded-xl font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <svg
+                  className="w-5 h-5 inline mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Exportar para CSV
+              </button>
+            </div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
+              {selectedArrivalQueue} & {selectedServiceQueues.join(", ")}
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse bg-[var(--element-bg)] rounded-2xl shadow-xl overflow-hidden">
+                <thead className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold">Tipo</th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Carimbo de Data/Hora
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Tempo Total
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Elemento
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Chegando
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Saindo
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data
+                    .filter(
+                      (record) =>
+                        record.queue === selectedArrivalQueue ||
+                        selectedServiceQueues.includes(record.queue)
+                    )
+                    .map((record, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-[var(--text-secondary)] transition-colors duration-300"
+                      >
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {record.type}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatDateWithMilliseconds(record.timestamp)}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatTime(record.totalTime)}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {record.element}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatDateWithMilliseconds(record.arriving)}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {record.exiting
+                            ? formatDateWithMilliseconds(record.exiting)
+                            : "--"}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4">
+                          <button
+                            onClick={() => deleteRecord(data.indexOf(record))}
+                            className="text-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-300 p-2 rounded-full hover:bg-[var(--text-muted)]"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-8">
+              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">
+                Dados Vinculados por Cliente
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse bg-[var(--element-bg)] rounded-2xl shadow-xl overflow-hidden">
+                  <thead className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold">
+                        Cliente
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold">
+                        Tempo de Chegada
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold">
+                        Tempo de Serviço
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold">
+                        Tempo Interchegada
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linkedData.map((item, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-[var(--text-secondary)] transition-colors duration-300"
+                      >
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {item.customer}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatDateWithMilliseconds(item.arrivalTime.toString())}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatTime(item.serviceTime)}
+                        </td>
+                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
+                          {formatTime(item.interarrival)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mt-8">
+              <button
+                onClick={() => {
+                  setSelectedArrivalQueue(tempArrivalQueue);
+                  setSelectedServiceQueues(tempServiceQueues);
+                }}
+                disabled={!tempArrivalQueue || tempServiceQueues.length === 0}
+              >
+                Calcular Métricas
+              </button>
+              {calculations && (
+                <div className="mt-4 bg-[var(--element-bg)] rounded-2xl p-6 shadow-xl">
+                  {"error" in calculations ? (
+                    <p className="text-red-500">{calculations.error}</p>
+                  ) : (
+                    <div>
+                      <h3 className="text-xl font-bold mb-4">
+                        Parâmetros do Sistema (Chegadas: {selectedArrivalQueue},
+                        Atendimentos: {selectedServiceQueues.join(", ")})
+                      </h3>
+                      <p>
+                        λ (taxa de chegada): {calculations.lambda.toFixed(4)}{" "}
+                        clientes/s
+                      </p>
+                      <p>
+                        μ (taxa de atendimento): {calculations.mu.toFixed(4)}{" "}
+                        clientes/s
+                      </p>
+                      <p>ρ (utilização): {calculations.rho.toFixed(4)}</p>
+                      <p>P0: {calculations.P0.toFixed(4)}</p>
+                      <p>
+                        L (número médio de clientes no sistema):{" "}
+                        {calculations.L.toFixed(4)}
+                      </p>
+                      <p>
+                        Lq (número médio de clientes na fila):{" "}
+                        {calculations.Lq.toFixed(4)}
+                      </p>
+                      <p>
+                        W (tempo médio de permanência no sistema):{" "}
+                        {calculations.W.toFixed(4)} s
+                      </p>
+                      <p>
+                        Wq (tempo médio de espera na fila):{" "}
+                        {calculations.Wq.toFixed(4)} s
+                      </p>
+                      <div>
+                        <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                          Tempo Médio na Fila (Wq)
+                        </h4>
+                        <p className="text-lg text-[var(--accent)]">
+                          {calculations.Wq.toFixed(4)}s
+                        </p>
+                      </div>
+                      <div className="col-span-full">
+                        <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                          Probabilidades de Estado (Pn)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {calculations.Pn.map((p: number, n: number) => (
+                            <div
+                              key={n}
+                              className="bg-[var(--bg-secondary)] p-2 rounded"
+                            >
+                              <span className="text-sm text-[var(--text-primary)]">
+                                P({n}) = {p.toFixed(6)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+            {uniqueQueues.map((queueName) => {
+              const queueData = data.filter((r) => r.queue === queueName);
+              const arrivalsCount = queueData.filter(
+                (r) => r.type === "arrival"
+              ).length;
+              const servicesCount = queueData.filter(
+                (r) => r.type === "service"
+              ).length;
+              return (
+                <div
+                  key={queueName}
+                  className="bg-[var(--bg-secondary)] p-4 rounded-lg shadow-md cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
+                  onClick={() => {
+                    if (!selectedArrivalQueue) {
+                      setSelectedArrivalQueue(queueName);
+                    } else {
+                      setSelectedServiceQueues((prev) => [...prev, queueName]);
+                    }
+                  }}
+                >
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                    {queueName}
+                  </h3>
+                  <p>
+                    <strong>Total de Registros:</strong> {queueData.length}
+                  </p>
+                  <p>
+                    <strong>Chegadas:</strong> {arrivalsCount}
+                  </p>
+                  <p>
+                    <strong>Atendimentos:</strong> {servicesCount}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
