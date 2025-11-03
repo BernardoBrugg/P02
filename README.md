@@ -1,12 +1,13 @@
 # Aplicativo de Teoria de Filas
 
-Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, TypeScript e Tailwind CSS. Permite medir tempos de chegada, visualizar dados e explorar painéis com métricas e gráficos importantes da Teoria das Filas.
+Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, TypeScript e Tailwind CSS. Permite medir tempos de chegada, visualizar dados, importar/exportar dados em CSV, explorar painéis com métricas e gráficos importantes da Teoria das Filas, e carregar estudos de caso pré-definidos.
 
 ## Funcionalidades
 
 - **Cronômetros**: Adicione filas e meça tempos de chegada e saída de clientes.
-- **Dados**: Visualize, gerencie e exporte os dados coletados em formato CSV.
-- **Painéis**: Explore métricas de desempenho e gráficos interativos, incluindo comparações de tempos de espera, distribuições e taxas de chegada.
+- **Dados**: Visualize, gerencie, importe e exporte os dados coletados em formato CSV.
+- **Painéis**: Explore métricas de desempenho e gráficos interativos, incluindo probabilidades de estado, comparações de tempos de espera e chegadas/saídas cumulativas.
+- **Simulações**: Carregue estudos de caso pré-definidos para análise de diferentes cenários de sistemas de filas.
 
 ## Tecnologias Utilizadas
 
@@ -15,6 +16,7 @@ Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, 
 - **Tailwind CSS**: Framework CSS utilitário para estilização.
 - **Recharts**: Biblioteca para gráficos interativos.
 - **KaTeX**: Para renderização de símbolos matemáticos.
+- **PapaParse**: Para parsing de arquivos CSV.
 - **LocalStorage**: Para armazenamento local de dados.
 
 ## Instalação
@@ -45,97 +47,112 @@ Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, 
 ### Página Inicial
 
 - Apresenta uma visão geral do aplicativo.
-- Botões para navegar diretamente para Cronômetros ou Painéis.
+- Botões para navegar diretamente para Cronômetros, Dados, Painéis ou Simulações.
 - Descrição das funcionalidades principais.
 
 ### Página de Cronômetros
 
-- **Adicionar Filas**: Digite o nome da nova fila no campo e clique em "Adicionar Fila".
-- **Iniciar Temporização**: Para cada fila, clique em "Chegando" quando um cliente chega e "Saindo" quando sai.
-- **Parar**: Clique em "Parar" para resetar os cronômetros.
+- **Adicionar Filas**: Digite o nome da nova fila no campo, selecione o tipo (Chegada ou Atendimento) e clique em "Adicionar Fila".
+- **Iniciar Temporização**: Para filas de chegada, clique em "Start" para iniciar, "Stop" para parar, e "+1" para registrar uma chegada. Para filas de atendimento, clique em "Chegou no atendimento" e "Completou atendimento".
 - Os dados são salvos automaticamente no navegador.
 
 ### Página de Dados
 
 - Visualize todos os registros coletados em uma tabela.
-- **Exportar para CSV**: Clique no botão para baixar os dados em formato CSV para análise externa.
+- **Importar CSV**: Especifique o nome da fila e selecione um arquivo CSV no formato exportado para importar dados.
+- **Exportar para CSV**: Clique no botão para baixar os dados de uma fila em formato CSV.
 - **Deletar Registros**: Use o ícone de lixeira para remover entradas indesejadas.
+- **Limpar Todos os Dados**: Remove todos os registros.
 
 ### Página de Painéis
 
-- Exibe métricas calculadas por fila e gráficos.
+- Exibe métricas calculadas por serviço e gráficos.
 - **Métricas**:
-  - **W (Tempo Médio Total)**: Tempo médio que um cliente passa no sistema.
-  - **Wq (Tempo Médio de Espera)**: Tempo médio de espera na fila.
-  - **Ts (Tempo Médio de Serviço)**: Tempo médio de atendimento (simulado como 5s).
-  - **λ (Taxa de Chegada)**: Número médio de chegadas por segundo.
-  - **ρ (Utilização do Sistema)**: Fração do tempo que o servidor está ocupado.
+  - **λ (Taxa de Chegada)**: Taxa média de chegadas por segundo.
+  - **μ (Taxa de Atendimento)**: Taxa média de atendimentos por segundo.
+  - **ρ (Utilização)**: Fração do tempo que o sistema está ocupado.
+  - **L (Número Médio de Clientes no Sistema)**: Número médio de clientes no sistema.
+  - **Lq (Número Médio de Clientes na Fila)**: Número médio de clientes na fila.
+  - **W (Tempo Médio no Sistema)**: Tempo médio de permanência no sistema.
+  - **Wq (Tempo Médio na Fila)**: Tempo médio de espera na fila.
+  - **P(n) (Probabilidades de Estado)**: Probabilidades de ter n clientes no sistema.
 - **Gráficos**:
-  - **Comparação de Desempenho**: Barras comparando Wq e Ts entre filas.
-  - **Distribuição da Espera**: Histograma de Wq para a fila com pior desempenho.
-  - **Taxa de Chegada por Fila**: Barras mostrando λ por fila.
-  - **Chegadas e Saídas Cumulativas**: Linha mostrando acumulação ao longo do tempo.
+  - **Gráfico Cumulativo**: Linha mostrando chegadas e saídas acumuladas ao longo do tempo.
+  - **Gráfico de Probabilidades P(n)**: Barras mostrando as probabilidades de estado.
+
+### Página de Simulações
+
+- Carregue estudos de caso pré-definidos para analisar diferentes cenários.
+- **Estudos Disponíveis**:
+  - Sistema M/M/1 Estável (ρ = 0.5)
+  - Sistema M/M/1 Sobrecarregado (ρ = 0.8)
+  - Sistema M/M/1 Eficiente (ρ = 0.1)
+- Clique em "Carregar Estudo" para adicionar o estudo aos serviços salvos e visualizar métricas e gráficos.
 
 ## Conceitos da Teoria das Filas
 
-- **Clientes**: Entidades que demandam serviço (veículos).
-- **Filas**: Pontos de espera (aproximações esquerda e direita).
-- **Servidor**: Capacidade de atendimento (pistas da rua).
-- **Disciplina**: Regra de atendimento (afluência dinâmica).
-- As métricas ajudam a avaliar o desempenho, identificar gargalos e sugerir melhorias, como aumento de capacidade ou mudanças na sinalização.
+- **Clientes**: Entidades que demandam serviço.
+- **Filas**: Pontos de espera.
+- **Servidor**: Capacidade de atendimento.
+- **Disciplina**: Regra de atendimento (ex.: FIFO).
+- As métricas ajudam a avaliar o desempenho, identificar gargalos e sugerir melhorias.
 
 ## Teoria Matemática
 
-Este aplicativo baseia-se na Teoria das Filas, especificamente no modelo M/M/1, onde as chegadas seguem um processo de Poisson (exponencial) e os tempos de serviço são exponenciais. O modelo assume um único servidor.
+Este aplicativo baseia-se na Teoria das Filas, especificamente no modelo M/M/1, onde as chegadas seguem um processo de Poisson e os tempos de serviço são exponenciais. O modelo assume um único servidor.
 
 ### Fórmulas Principais
 
-- **λ (Taxa de Chegada)**: Calculada como o número total de chegadas dividido pelo tempo total de observação. Representa a taxa média de chegadas por unidade de tempo (segundos).
-
-$$
-λ = \frac{\text{Número de chegadas}}{\text{Tempo total}}
-$$
-
-- **Ts (Tempo Médio de Serviço)**: Simulado como 5 segundos neste aplicativo. Em um cenário real, seria calculado a partir dos dados medidos.
-
-$$
-Ts = \frac{1}{μ}
-$$
-
-Onde μ é a taxa de serviço.
+- **λ (Taxa de Chegada)**: Calculada a partir dos intervalos entre chegadas.
 
 - **μ (Taxa de Serviço)**: Inversa do tempo médio de serviço.
 
-$$
-μ = \frac{1}{Ts}
-$$
-
-- **ρ (Utilização do Sistema)**: Fração do tempo que o servidor está ocupado. Deve ser menor que 1 para estabilidade.
+- **ρ (Utilização do Sistema)**:
 
 $$
-ρ = \frac{λ}{μ}
+\rho = \frac{\lambda}{\mu}
 $$
 
-- **Wq (Tempo Médio de Espera na Fila)**: Tempo médio que um cliente espera na fila antes de ser atendido.
+- **P0 (Probabilidade de Sistema Vazio)**:
 
 $$
-Wq = \frac{ρ}{μ (1 - ρ)}
+P_0 = 1 - \rho
 $$
 
-- **W (Tempo Médio Total no Sistema)**: Tempo médio que um cliente passa no sistema, incluindo espera e serviço.
+- **Pn (Probabilidades de Estado)**:
 
 $$
-W = Wq + Ts
+P_n = P_0 \rho^n
+$$
+
+- **L (Número Médio de Clientes no Sistema)**:
+
+$$
+L = \frac{\rho}{1 - \rho}
+$$
+
+- **Lq (Número Médio de Clientes na Fila)**:
+
+$$
+L_q = \frac{\rho^2}{1 - \rho}
+$$
+
+- **W (Tempo Médio no Sistema)**:
+
+$$
+W = \frac{L}{\lambda}
+$$
+
+- **Wq (Tempo Médio na Fila)**:
+
+$$
+W_q = \frac{L_q}{\lambda}
 $$
 
 ### Interpretação dos Gráficos
 
-- **Comparação de Desempenho**: Compara Wq e Ts entre filas para identificar quais têm maiores tempos de espera relativos ao serviço.
-- **Distribuição da Espera**: Mostra a frequência de diferentes tempos de espera na fila para a fila com pior desempenho, ajudando a entender a variabilidade.
-- **Taxa de Chegada por Fila**: Visualiza λ para cada fila, indicando a carga de trabalho.
-- **Chegadas e Saídas Cumulativas**: Plota o número acumulado de chegadas e saídas ao longo do tempo, útil para detectar padrões ou desequilíbrios.
-
-Essas fórmulas assumem condições ideais; em aplicações reais, ajustes podem ser necessários para distribuições não-exponenciais.
+- **Gráfico Cumulativo**: Mostra a evolução de chegadas e saídas ao longo do tempo.
+- **Gráfico de Probabilidades P(n)**: Visualiza a distribuição de estados do sistema.
 
 ## Estrutura do Projeto
 
@@ -147,12 +164,16 @@ src/
     chronometers/page.tsx  # Página de cronômetros
     dashboards/page.tsx    # Página de painéis
     data/page.tsx          # Página de dados
+    simulations/page.tsx   # Página de simulações
+    about/page.tsx         # Página sobre
   components/
     Chronometer.tsx     # Componente de cronômetro
     Nav.tsx             # Navegação
     TimestampCard.tsx   # Cartão de timestamp
     ClientLayout.tsx    # Layout do cliente
     ThemeProvider.tsx   # Provedor de tema
+    MathRenderer.tsx    # Renderizador de matemática
+    Footer.tsx          # Rodapé
 ```
 
 ## Contribuição

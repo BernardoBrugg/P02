@@ -6,6 +6,7 @@ import { TimestampCard } from "../../components/TimestampCard";
 
 interface Record {
   queue: string;
+  type: "arrival" | "service";
   timestamp: string;
   totalTime: number;
   element: number;
@@ -14,7 +15,9 @@ interface Record {
 }
 
 export default function Chronometers() {
-  const [queues, setQueues] = useState<string[]>(() => {
+  const [queues, setQueues] = useState<
+    { name: string; type: "arrival" | "service" }[]
+  >(() => {
     if (typeof window !== "undefined") {
       const storedQueues = localStorage.getItem("queueing-queues");
       return storedQueues ? JSON.parse(storedQueues) : [];
@@ -22,6 +25,9 @@ export default function Chronometers() {
     return [];
   });
   const [newQueue, setNewQueue] = useState("");
+  const [newQueueType, setNewQueueType] = useState<"arrival" | "service">(
+    "arrival"
+  );
   const [data, setData] = useState<Record[]>(() => {
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem("queueing-data");
@@ -39,7 +45,25 @@ export default function Chronometers() {
     }
   );
 
-  const saveQueues = (newQueues: string[]) => {
+  const [currentAppTime, setCurrentAppTime] = useState(new Date());
+  const [milliseconds, setMilliseconds] = useState(0);
+
+  const updateTimeWithMilliseconds = (dateTimeValue: string) => {
+    const baseDate = new Date(dateTimeValue);
+    baseDate.setMilliseconds(milliseconds);
+    setCurrentAppTime(baseDate);
+  };
+
+  const updateMilliseconds = (ms: number) => {
+    const newTime = new Date(currentAppTime);
+    newTime.setMilliseconds(ms);
+    setMilliseconds(ms);
+    setCurrentAppTime(newTime);
+  };
+
+  const saveQueues = (
+    newQueues: { name: string; type: "arrival" | "service" }[]
+  ) => {
     setQueues(newQueues);
     localStorage.setItem("queueing-queues", JSON.stringify(newQueues));
   };
@@ -55,8 +79,14 @@ export default function Chronometers() {
   };
 
   const addQueue = () => {
-    if (newQueue.trim() && !queues.includes(newQueue.trim())) {
-      const newQueues = [...queues, newQueue.trim()];
+    if (
+      newQueue.trim() &&
+      !queues.some((queue) => queue.name === newQueue.trim())
+    ) {
+      const newQueues = [
+        ...queues,
+        { name: newQueue.trim(), type: newQueueType },
+      ];
       saveQueues(newQueues);
       setNewQueue("");
     }
@@ -80,30 +110,69 @@ export default function Chronometers() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8"
+      suppressHydrationWarning={true}
+    >
       <div className="max-w-6xl mx-auto">
         <div className="animate-fade-in">
           <TimestampCard />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-8 text-center animate-slide-in-left">
+        <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-slide-in-left">
           Cronômetros
         </h1>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
+            Configuração de Tempo
+          </h2>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <input
+              type="datetime-local"
+              value={currentAppTime.toISOString().slice(0, 16)}
+              onChange={(e) => updateTimeWithMilliseconds(e.target.value)}
+              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+            />
+            <input
+              type="number"
+              value={milliseconds}
+              onChange={(e) => updateMilliseconds(Number(e.target.value))}
+              placeholder="Milissegundos"
+              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+            />
+            <button
+              onClick={() => setCurrentAppTime(new Date())}
+              className="px-6 py-3 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white rounded-xl font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Usar Tempo Atual
+            </button>
+          </div>
+        </div>
         <div
           className="mb-8 animate-fade-in"
           style={{ animationDelay: "0.2s" }}
         >
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+          <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
               <input
                 type="text"
                 value={newQueue}
                 onChange={(e) => setNewQueue(e.target.value)}
                 placeholder="Nome da nova fila"
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
+                className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
               />
+              <select
+                value={newQueueType}
+                onChange={(e) =>
+                  setNewQueueType(e.target.value as "arrival" | "service")
+                }
+                className="px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+              >
+                <option value="arrival">Chegada</option>
+                <option value="service">Atendimento</option>
+              </select>
               <button
                 onClick={addQueue}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white rounded-xl font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 <svg
                   className="w-5 h-5 inline mr-2"
@@ -130,13 +199,14 @@ export default function Chronometers() {
               className="animate-fade-in"
               style={{ animationDelay: `${0.3 + index * 0.1}s` }}
             >
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 mb-4 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                  {queue}
+              <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 mb-4 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                  {queue.name} (
+                  {queue.type === "arrival" ? "Chegada" : "Atendimento"})
                 </h2>
                 <button
                   onClick={() => removeQueue(index)}
-                  className="text-gray-500 hover:text-red-500 transition-colors duration-300 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors duration-300 p-2 rounded-full hover:bg-[var(--text-muted)]"
                 >
                   <svg
                     className="w-5 h-5"
@@ -154,9 +224,10 @@ export default function Chronometers() {
                 </button>
               </div>
               <Chronometer
-                queue={queue}
+                queue={queue.name}
+                type={queue.type}
                 getNextElement={getNextElement}
-                currentTotal={queueTotals[queue] || 0}
+                currentTotal={queueTotals[queue.name] || 0}
                 onRecord={recordEvent}
               />
             </div>

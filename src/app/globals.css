@@ -3,13 +3,29 @@
 :root {
   --background: #ffffff;
   --foreground: #000000;
-  --accent: #ff6600; /* orange */
+  --accent: #ff6600;
+  --bg-gradient-start: #dbeafe;
+  --bg-gradient-middle: #ffffff;
+  --bg-gradient-end: #faf5ff;
+  --element-bg: #ffffff;
+  --element-border: #f3f4f6;
+  --text-primary: #374151;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
 }
 
 .dark {
   --background: #000000;
   --foreground: #ffffff;
-  --accent: #800080; /* purple */
+  --accent: #800080;
+  --bg-gradient-start: #111827;
+  --bg-gradient-middle: #1f2937;
+  --bg-gradient-end: #581c87;
+  --element-bg: #1f2937;
+  --element-border: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
 }
 
 @keyframes fadeIn {

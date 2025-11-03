@@ -1,19 +1,22 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto text-center">
         <div className="mb-16">
-          <img
+          <Image
             src="/cronAppLogo.png"
             alt="Logo do Aplicativo de Teoria de Filas"
-            className="h-28 w-auto mx-auto mb-4 animate-fade-in rounded-2xl shadow-2xl ring-4 ring-orange-500/20 hover:scale-105 transition-transform duration-300"
+            width={112}
+            height={112}
+            className="h-28 w-auto mx-auto mb-4 animate-fade-in rounded-2xl shadow-2xl ring-4 ring-[var(--accent)]/20 hover:scale-105 transition-transform duration-300"
           />
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-purple-600 mb-6 animate-fade-in">
+          <h1 className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-6 animate-fade-in">
             Aplicativo de Teoria de Filas
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-[var(--text-secondary)] mb-8 max-w-3xl mx-auto leading-relaxed">
             Analise sistemas de filas medindo tempos de chegada, visualizando
             dados e explorando painéis com gráficos e métricas importantes.
             Mergulhe no mundo da teoria de filas com precisão e elegância.
@@ -21,21 +24,33 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <Link
               href="/chronometers"
-              className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-full font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white px-8 py-3 rounded-full font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
               Iniciar Cronômetros
             </Link>
             <Link
+              href="/data"
+              className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white px-8 py-3 rounded-full font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Ver Dados
+            </Link>
+            <Link
               href="/dashboards"
-              className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-3 rounded-full font-semibold hover:from-purple-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white px-8 py-3 rounded-full font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
               Ver Painéis
             </Link>
+            <Link
+              href="/simulations"
+              className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white px-8 py-3 rounded-full font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Simulações
+            </Link>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 dark:border-gray-700 group">
-            <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-red-400 rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="bg-[var(--element-bg)] p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-[var(--element-border)] group">
+            <div className="w-16 h-16 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
@@ -50,16 +65,16 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">
+            <h2 className="text-2xl font-bold mb-4 text-[var(--text-primary)]">
               Cronômetros
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+            <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
               Meça tempos de chegada para diferentes filas usando temporizadores
               integrados. Temporização precisa para análise de filas precisa.
             </p>
             <Link
               href="/chronometers"
-              className="inline-flex items-center text-orange-500 hover:text-orange-600 font-semibold group-hover:translate-x-2 transition-transform duration-300"
+              className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
             >
               Ir para Cronômetros
               <svg
@@ -77,8 +92,8 @@ export default function Home() {
               </svg>
             </Link>
           </div>
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 dark:border-gray-700 group">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+          <div className="bg-[var(--element-bg)] p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-[var(--element-border)] group">
+            <div className="w-16 h-16 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
@@ -93,16 +108,16 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">
+            <h2 className="text-2xl font-bold mb-4 text-[var(--text-primary)]">
               Dados
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+            <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
               Visualize e gerencie todos os dados registrados em um formato
               estruturado. Exporte para CSV para análise adicional.
             </p>
             <Link
               href="/data"
-              className="inline-flex items-center text-purple-500 hover:text-purple-600 font-semibold group-hover:translate-x-2 transition-transform duration-300"
+              className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
             >
               Ir para Dados
               <svg
@@ -120,8 +135,8 @@ export default function Home() {
               </svg>
             </Link>
           </div>
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 dark:border-gray-700 group">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-teal-400 rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+          <div className="bg-[var(--element-bg)] p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-[var(--element-border)] group">
+            <div className="w-16 h-16 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
@@ -136,16 +151,16 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">
+            <h2 className="text-2xl font-bold mb-4 text-[var(--text-primary)]">
               Painéis
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+            <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
               Explore gráficos e métricas importantes para análise de filas.
               Visualize seus dados com gráficos impressionantes.
             </p>
             <Link
               href="/dashboards"
-              className="inline-flex items-center text-green-500 hover:text-green-600 font-semibold group-hover:translate-x-2 transition-transform duration-300"
+              className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
             >
               Ir para Painéis
               <svg
@@ -163,9 +178,52 @@ export default function Home() {
               </svg>
             </Link>
           </div>
+          <div className="bg-[var(--element-bg)] p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-[var(--element-border)] group">
+            <div className="w-16 h-16 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] rounded-full flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-[var(--text-primary)]">
+              Simulações
+            </h2>
+            <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
+              Simule sistemas de filas com parâmetros personalizados e visualize
+              o comportamento da fila ao longo do tempo.
+            </p>
+            <Link
+              href="/simulations"
+              className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
+            >
+              Ir para Simulações
+              <svg
+                className="w-4 h-4 ml-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          </div>
         </div>
         <div className="mt-16 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-[var(--text-muted)] text-sm">
             Todos os dados são armazenados localmente no seu navegador. Exporte
             para CSV para análise adicional.
           </p>
