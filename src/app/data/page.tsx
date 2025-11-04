@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from "react";
 import Papa from "papaparse";
+import { Nav } from "../../components/Nav";
 
 interface QueueRecord {
+  id: string;
   queue: string;
   type: "arrival" | "service";
   timestamp: string;
@@ -20,25 +22,17 @@ interface LinkedItem {
   interarrival: number;
 }
 
-type QueueCalculations =
-  | {
-      lambda: number;
-      mu: number;
-      rho: number;
-      P0: number;
-      Pn: number[];
-      L: number;
-      Lq: number;
-      W: number;
-      Wq: number;
-    }
-  | { error: string };
-
 export default function Data() {
   const [data, setData] = useState<QueueRecord[]>(() => {
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem("queueing-data");
-      return storedData ? JSON.parse(storedData) : [];
+      if (storedData) {
+        const parsed = JSON.parse(storedData) as QueueRecord[];
+        return parsed.map((r: QueueRecord, index: number) => ({
+          ...r,
+          id: r.id || `legacy-${Date.now()}-${index}`,
+        }));
+      }
     }
     return [];
   });
@@ -48,11 +42,6 @@ export default function Data() {
   >(null);
   const [selectedServiceQueues, setSelectedServiceQueues] = useState<string[]>(
     []
-  );
-  const [tempArrivalQueue, setTempArrivalQueue] = useState<string>("");
-  const [tempServiceQueues, setTempServiceQueues] = useState<string[]>([]);
-  const [calculations, setCalculations] = useState<QueueCalculations | null>(
-    null
   );
   const [importQueue, setImportQueue] = useState("");
 
@@ -66,18 +55,20 @@ export default function Data() {
       header: true,
       delimiter: ";",
       complete: (results) => {
-        const importedData: QueueRecord[] = (results.data as Record<string, string>[])
-          .map((row) => {
+        const importedData: QueueRecord[] = (
+          results.data as Record<string, string>[]
+        )
+          .map((row, index) => {
             const tipo = row["Tipo"];
             const timestamp = row["Carimbo de Data/Hora"];
             const tempoTotalStr = row["Tempo Total"];
             const elemento = parseInt(row["Elemento"]);
             const chegando = row["Chegando"];
             const saindo = row["Saindo"];
-            // Parse tempoTotal: remove 's' and parse float, convert to ms
             const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
             return {
-              queue: importQueue.trim(),
+              id: `import-${Date.now()}-${index}`,
+              queue: tipo as "arrival" | "service",
               type: tipo as "arrival" | "service",
               timestamp,
               totalTime,
@@ -96,7 +87,7 @@ export default function Data() {
         }
         saveData([...data, ...importedData]);
         setImportQueue("");
-        event.target.value = ""; // Reset file input
+        event.target.value = ""; 
         alert(`${importedData.length} registros importados com sucesso.`);
       },
       error: (error) => {
@@ -144,8 +135,8 @@ export default function Data() {
     localStorage.setItem("queueing-data", JSON.stringify(newData));
   };
 
-  const deleteRecord = (index: number) => {
-    const newData = data.filter((_, i) => i !== index);
+  const deleteRecord = (record: QueueRecord) => {
+    const newData = data.filter((r) => r.id !== record.id);
     saveData(newData);
   };
 
@@ -156,6 +147,8 @@ export default function Data() {
       )
     ) {
       saveData([]);
+      setSelectedArrivalQueue(null);
+      setSelectedServiceQueues([]);
     }
   };
 
@@ -167,13 +160,13 @@ export default function Data() {
   const formatDateWithMilliseconds = (dateString: string) => {
     if (!dateString || dateString === "--") return "--";
     const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
     return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}.${milliseconds}`;
   };
 
@@ -185,7 +178,9 @@ export default function Data() {
       "Tempo Total": formatTime(record.totalTime),
       Elemento: record.element,
       Chegando: formatDateWithMilliseconds(record.arriving),
-      Saindo: record.exiting ? formatDateWithMilliseconds(record.exiting) : "--",
+      Saindo: record.exiting
+        ? formatDateWithMilliseconds(record.exiting)
+        : "--",
     }));
     const csv = Papa.unparse(csvData, { delimiter: ";" });
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -199,56 +194,12 @@ export default function Data() {
     document.body.removeChild(link);
   };
 
-  const getLinkedStats = (linked: LinkedItem[]) => {
-    const totalRecords = linked.length;
-    const arrivalsCount = linked.length;
-    const servicesCount = linked.length;
-    const avgInterarrival =
-      linked.length > 1
-        ? linked.slice(1).reduce((sum, l) => sum + l.interarrival, 0) /
-          (linked.length - 1)
-        : 0;
-    const avgServiceTime =
-      linked.reduce((sum, l) => sum + l.serviceTime, 0) / linked.length;
-    return {
-      totalRecords,
-      arrivalsCount,
-      servicesCount,
-      avgInterarrival: avgInterarrival / 1000,
-      avgServiceTime: avgServiceTime / 1000,
-    };
-  };
-
-  const computeQueueParameters = (lambda: number, mu: number) => {
-    if (lambda === 0 || mu === 0) {
-      return { error: "Dados insuficientes para cálculo" };
-    }
-    const rho = lambda / mu;
-    if (rho >= 1) {
-      return { error: "Sistema instável (ρ >= 1)" };
-    }
-    const P0 = 1 - rho;
-    const Pn = Array.from({ length: 11 }, (_, n) =>
-      n === 0 ? P0 : rho ** n * P0
-    );
-    const L = rho / (1 - rho);
-    const Lq = rho ** 2 / (1 - rho);
-    const W = L / lambda;
-    const Wq = Lq / lambda;
-    return { lambda, mu, rho, P0, Pn, L, Lq, W, Wq };
-  };
-
   const uniqueQueues = Array.from(new Set(data.map((record) => record.queue)));
-  const arrivalQueues = uniqueQueues.filter((q) =>
-    data.some((r) => r.queue === q && r.type === "arrival")
-  );
-  const serviceQueues = uniqueQueues.filter((q) =>
-    data.some((r) => r.queue === q && r.type === "service")
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
+        <Nav />
         <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-fade-in">
           Dados
         </h1>
@@ -305,8 +256,6 @@ export default function Data() {
               onClick={() => {
                 setSelectedArrivalQueue(null);
                 setSelectedServiceQueues([]);
-                setTempArrivalQueue("");
-                setTempServiceQueues([]);
               }}
               className="mb-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
             >
@@ -393,7 +342,7 @@ export default function Data() {
                         </td>
                         <td className="border-t border-[var(--element-border)] px-6 py-4">
                           <button
-                            onClick={() => deleteRecord(data.indexOf(record))}
+                            onClick={() => deleteRecord(record)}
                             className="text-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-300 p-2 rounded-full hover:bg-[var(--text-muted)]"
                           >
                             <svg
@@ -448,7 +397,9 @@ export default function Data() {
                           {item.customer}
                         </td>
                         <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatDateWithMilliseconds(item.arrivalTime.toString())}
+                          {formatDateWithMilliseconds(
+                            item.arrivalTime.toString()
+                          )}
                         </td>
                         <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
                           {formatTime(item.serviceTime)}
@@ -461,82 +412,6 @@ export default function Data() {
                   </tbody>
                 </table>
               </div>
-            </div>
-            <div className="mt-8">
-              <button
-                onClick={() => {
-                  setSelectedArrivalQueue(tempArrivalQueue);
-                  setSelectedServiceQueues(tempServiceQueues);
-                }}
-                disabled={!tempArrivalQueue || tempServiceQueues.length === 0}
-              >
-                Calcular Métricas
-              </button>
-              {calculations && (
-                <div className="mt-4 bg-[var(--element-bg)] rounded-2xl p-6 shadow-xl">
-                  {"error" in calculations ? (
-                    <p className="text-red-500">{calculations.error}</p>
-                  ) : (
-                    <div>
-                      <h3 className="text-xl font-bold mb-4">
-                        Parâmetros do Sistema (Chegadas: {selectedArrivalQueue},
-                        Atendimentos: {selectedServiceQueues.join(", ")})
-                      </h3>
-                      <p>
-                        λ (taxa de chegada): {calculations.lambda.toFixed(4)}{" "}
-                        clientes/s
-                      </p>
-                      <p>
-                        μ (taxa de atendimento): {calculations.mu.toFixed(4)}{" "}
-                        clientes/s
-                      </p>
-                      <p>ρ (utilização): {calculations.rho.toFixed(4)}</p>
-                      <p>P0: {calculations.P0.toFixed(4)}</p>
-                      <p>
-                        L (número médio de clientes no sistema):{" "}
-                        {calculations.L.toFixed(4)}
-                      </p>
-                      <p>
-                        Lq (número médio de clientes na fila):{" "}
-                        {calculations.Lq.toFixed(4)}
-                      </p>
-                      <p>
-                        W (tempo médio de permanência no sistema):{" "}
-                        {calculations.W.toFixed(4)} s
-                      </p>
-                      <p>
-                        Wq (tempo médio de espera na fila):{" "}
-                        {calculations.Wq.toFixed(4)} s
-                      </p>
-                      <div>
-                        <h4 className="font-semibold text-[var(--text-primary)] mb-2">
-                          Tempo Médio na Fila (Wq)
-                        </h4>
-                        <p className="text-lg text-[var(--accent)]">
-                          {calculations.Wq.toFixed(4)}s
-                        </p>
-                      </div>
-                      <div className="col-span-full">
-                        <h4 className="font-semibold text-[var(--text-primary)] mb-2">
-                          Probabilidades de Estado (Pn)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                          {calculations.Pn.map((p: number, n: number) => (
-                            <div
-                              key={n}
-                              className="bg-[var(--bg-secondary)] p-2 rounded"
-                            >
-                              <span className="text-sm text-[var(--text-primary)]">
-                                P({n}) = {p.toFixed(6)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         ) : (
