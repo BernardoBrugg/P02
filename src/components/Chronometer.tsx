@@ -133,12 +133,12 @@ export function Chronometer({
   };
 
   return (
-    <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-8 rounded-2xl shadow-md group">
+    <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-8 rounded-2xl shadow-md group font-sans">
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
           {queue}
         </h3>
-        <div className="text-4xl font-mono text-[var(--accent)] font-bold">
+        <div className="text-4xl text-[var(--accent)] font-bold">
           {formatTime(displayTime)}
         </div>
       </div>
@@ -167,7 +167,7 @@ export function Chronometer({
           <span className="text-[var(--text-secondary)] font-medium">
             {type === "arrival" ? "Espera Atual:" : "Tempo de Atendimento:"}
           </span>
-          <span className="text-xl font-mono text-[var(--accent)] font-bold">
+          <span className="text-xl text-[var(--accent)] font-bold">
             {(type === "arrival" && pendingClients.length > 0) ||
             (type === "service" && currentServicing)
               ? formatTime(currentWait)
@@ -179,21 +179,8 @@ export function Chronometer({
         {type === "arrival" ? (
           <>
             <button
-              onClick={() => setStartTime(Date.now())}
-              disabled={startTime !== null}
-              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Start
-            </button>
-            <button
-              onClick={stop}
-              className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all duration-300 shadow-lg"
-            >
-              Stop
-            </button>
-            <button
               onClick={addArrival}
-              className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg"
+              className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 shadow-lg"
             >
               +1
             </button>
@@ -202,14 +189,14 @@ export function Chronometer({
           <>
             <button
               onClick={arrivedAtService}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all duration-300 shadow-lg"
+              className="flex-1 px-6 py-3 bg-[var(--button-info)] text-white rounded-xl font-semibold hover:bg-[var(--button-info-hover)] transition-all duration-300 shadow-lg"
             >
               Chegou no atendimento
             </button>
             <button
               onClick={completedService}
               disabled={!currentServicing}
-              className="flex-1 px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-[var(--button-success)] text-white rounded-xl font-semibold hover:bg-[var(--button-success-hover)] transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Completou atendimento
             </button>

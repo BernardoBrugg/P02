@@ -105,7 +105,6 @@ export default function Chronometers() {
     const newQueues = queues.filter((_, i) => i !== index);
     saveQueues(newQueues);
 
-    // Remove records for this queue
     const newData = data.filter(
       (record) => record.queue !== queueToRemove.name
     );
@@ -137,7 +136,7 @@ export default function Chronometers() {
     <div>
       <Nav />
       <div
-        className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8"
+        className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8 font-sans"
         suppressHydrationWarning={true}
       >
         <div className="max-w-6xl mx-auto">

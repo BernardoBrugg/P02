@@ -32,7 +32,7 @@ export function TimestampCard() {
           Hora Atual
         </h2>
       </div>
-      <p className="text-2xl font-mono text-[var(--text-secondary)] font-bold">
+      <p className="text-2xl text-[var(--text-secondary)] font-bold">
         {currentTime.toLocaleString()}
       </p>
     </div>

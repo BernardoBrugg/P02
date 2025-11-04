@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <>
       <Nav />
-      <div className="min-h-screen py-24 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--element-bg)] via-[var(--bg-gradient-start)] to-[var(--element-bg)] py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="mb-32">
             <Image
@@ -14,9 +14,9 @@ export default function Home() {
               alt="Logo do Aplicativo de Teoria de Filas"
               width={112}
               height={112}
-              className="h-32 w-auto mx-auto mb-8 animate-fade-in rounded-lg"
+              className="h-32 w-auto mx-auto mb-8 animate-fade-in rounded-lg shadow-lg"
             />
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-[var(--text-primary)] mb-12 animate-fade-in leading-tight">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] mb-12 animate-fade-in leading-tight">
               Aplicativo de Teoria de Filas
             </h1>
             <p className="text-xl sm:text-2xl text-[var(--text-secondary)] mb-16 max-w-4xl mx-auto leading-relaxed">
@@ -27,25 +27,25 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <Link
                 href="/chronometers"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                className="bg-[var(--accent)] text-white px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 uppercase tracking-wide shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Iniciar Cronômetros
               </Link>
               <Link
                 href="/data"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                className="bg-[var(--accent)] text-white px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 uppercase tracking-wide shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Ver Dados
               </Link>
               <Link
                 href="/dashboards"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                className="bg-[var(--accent)] text-white px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 uppercase tracking-wide shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Ver Painéis
               </Link>
               <Link
                 href="/simulations"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                className="bg-[var(--accent)] text-white px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 uppercase tracking-wide shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Simulações
               </Link>
