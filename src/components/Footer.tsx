@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="p-8 text-[var(--text-secondary)] text-center animate-fade-in">
       <div className="mx-auto max-w-6xl">
         <p className="text-lg font-medium text-[var(--text-primary)] mb-2">
-          Aplicativo de Teoria de Filas &copy; {new Date().getFullYear()} -
+        Teoria das filas: CronApp &copy; {new Date().getFullYear()} -
           Todos os direitos reservados
         </p>
         <p className="text-sm mb-6">

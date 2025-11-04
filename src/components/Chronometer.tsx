@@ -179,8 +179,21 @@ export function Chronometer({
         {type === "arrival" ? (
           <>
             <button
+              onClick={() => setStartTime(Date.now())}
+              disabled={startTime !== null}
+              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start
+            </button>
+            <button
+              onClick={stop}
+              className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all duration-300 shadow-lg"
+            >
+              Stop
+            </button>
+            <button
               onClick={addArrival}
-              className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent-hover)] transition-all duration-300 shadow-lg"
+              className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg"
             >
               +1
             </button>
@@ -189,14 +202,14 @@ export function Chronometer({
           <>
             <button
               onClick={arrivedAtService}
-              className="flex-1 px-6 py-3 bg-[var(--button-info)] text-white rounded-xl font-semibold hover:bg-[var(--button-info-hover)] transition-all duration-300 shadow-lg"
+              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all duration-300 shadow-lg"
             >
               Chegou no atendimento
             </button>
             <button
               onClick={completedService}
               disabled={!currentServicing}
-              className="flex-1 px-6 py-3 bg-[var(--button-success)] text-white rounded-xl font-semibold hover:bg-[var(--button-success-hover)] transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Completou atendimento
             </button>

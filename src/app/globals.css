@@ -3,9 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #000000;
-  --accent: #ff6600;
-  --accent-hover: #e55a00;
-  --accent-light: #fff4f0;
+  --accent: #6b7280;
+  --accent-hover: #4b5563;
+  --accent-light: #f3f4f6;
   --bg-gradient-start: #ffffff;
   --bg-gradient-middle: #ffffff;
   --bg-gradient-end: #ffffff;
@@ -16,7 +16,7 @@
   --text-primary: #374151;
   --text-secondary: #6b7280;
   --text-muted: #9ca3af;
-  --text-accent: #ff6600;
+  --text-accent: #6b7280;
   --border-radius: 12px;
   --border-radius-large: 20px;
   --transition: all 0.3s ease-in-out;
@@ -26,24 +26,14 @@
   --spacing-lg: 3rem;
   --spacing-xl: 4rem;
   --spacing-2xl: 6rem;
-  --button-primary: var(--accent);
-  --button-primary-hover: var(--accent-hover);
-  --button-secondary: #6b7280;
-  --button-secondary-hover: #4b5563;
-  --button-success: #10b981;
-  --button-success-hover: #059669;
-  --button-info: #3b82f6;
-  --button-info-hover: #2563eb;
-  --button-warning: #f59e0b;
-  --button-warning-hover: #d97706;
 }
 
 .dark {
   --background: #000000;
   --foreground: #ffffff;
-  --accent: #800080;
-  --accent-hover: #660066;
-  --accent-light: #1a001a;
+  --accent: #9ca3af;
+  --accent-hover: #6b7280;
+  --accent-light: #1f2937;
   --bg-gradient-start: #000000;
   --bg-gradient-middle: #000000;
   --bg-gradient-end: #000000;
@@ -54,17 +44,7 @@
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
   --text-muted: #9ca3af;
-  --text-accent: #800080;
-  --button-primary: var(--accent);
-  --button-primary-hover: var(--accent-hover);
-  --button-secondary: #d1d5db;
-  --button-secondary-hover: #9ca3af;
-  --button-success: #10b981;
-  --button-success-hover: #059669;
-  --button-info: #3b82f6;
-  --button-info-hover: #2563eb;
-  --button-warning: #f59e0b;
-  --button-warning-hover: #d97706;
+  --text-accent: #9ca3af;
 }
 
 @keyframes fadeIn {
@@ -242,8 +222,4 @@ select:focus {
 ::-moz-selection {
   background: var(--accent);
   color: white;
-}
-
-@theme {
-  --font-family-mono: var(--font-inter), sans-serif;
 }
