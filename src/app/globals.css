@@ -3,9 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #000000;
-  --accent: #ff6600;
-  --accent-hover: #e55a00;
-  --accent-light: #fff4f0;
+  --accent: #6b7280;
+  --accent-hover: #4b5563;
+  --accent-light: #f3f4f6;
   --bg-gradient-start: #ffffff;
   --bg-gradient-middle: #ffffff;
   --bg-gradient-end: #ffffff;
@@ -16,7 +16,7 @@
   --text-primary: #374151;
   --text-secondary: #6b7280;
   --text-muted: #9ca3af;
-  --text-accent: #ff6600;
+  --text-accent: #6b7280;
   --border-radius: 12px;
   --border-radius-large: 20px;
   --transition: all 0.3s ease-in-out;
@@ -31,9 +31,9 @@
 .dark {
   --background: #000000;
   --foreground: #ffffff;
-  --accent: #800080;
-  --accent-hover: #660066;
-  --accent-light: #1a001a;
+  --accent: #9ca3af;
+  --accent-hover: #6b7280;
+  --accent-light: #1f2937;
   --bg-gradient-start: #000000;
   --bg-gradient-middle: #000000;
   --bg-gradient-end: #000000;
@@ -44,7 +44,7 @@
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
   --text-muted: #9ca3af;
-  --text-accent: #800080;
+  --text-accent: #9ca3af;
 }
 
 @keyframes fadeIn {
