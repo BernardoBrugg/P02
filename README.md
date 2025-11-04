@@ -1,4 +1,4 @@
-# Aplicativo de Teoria de Filas
+# Teoria das filas: CronApp
 
 Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, TypeScript e Tailwind CSS. Permite medir tempos de chegada, visualizar dados, importar/exportar dados em CSV, explorar painéis com métricas e gráficos importantes da Teoria das Filas, e carregar estudos de caso pré-definidos.
 

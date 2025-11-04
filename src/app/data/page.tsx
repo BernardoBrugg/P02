@@ -87,7 +87,7 @@ export default function Data() {
         }
         saveData([...data, ...importedData]);
         setImportQueue("");
-        event.target.value = ""; 
+        event.target.value = "";
         alert(`${importedData.length} registros importados com sucesso.`);
       },
       error: (error) => {

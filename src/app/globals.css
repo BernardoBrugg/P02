@@ -26,16 +26,6 @@
   --spacing-lg: 3rem;
   --spacing-xl: 4rem;
   --spacing-2xl: 6rem;
-  --button-primary: var(--accent);
-  --button-primary-hover: var(--accent-hover);
-  --button-secondary: #6b7280;
-  --button-secondary-hover: #4b5563;
-  --button-success: #10b981;
-  --button-success-hover: #059669;
-  --button-info: #3b82f6;
-  --button-info-hover: #2563eb;
-  --button-warning: #f59e0b;
-  --button-warning-hover: #d97706;
 }
 
 .dark {
@@ -55,16 +45,6 @@
   --text-secondary: #d1d5db;
   --text-muted: #9ca3af;
   --text-accent: #800080;
-  --button-primary: var(--accent);
-  --button-primary-hover: var(--accent-hover);
-  --button-secondary: #d1d5db;
-  --button-secondary-hover: #9ca3af;
-  --button-success: #10b981;
-  --button-success-hover: #059669;
-  --button-info: #3b82f6;
-  --button-info-hover: #2563eb;
-  --button-warning: #f59e0b;
-  --button-warning-hover: #d97706;
 }
 
 @keyframes fadeIn {
@@ -242,8 +222,4 @@ select:focus {
 ::-moz-selection {
   background: var(--accent);
   color: white;
-}
-
-@theme {
-  --font-family-mono: var(--font-inter), sans-serif;
 }

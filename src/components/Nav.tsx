@@ -25,7 +25,7 @@ export function Nav() {
         >
           <Image
             src="/cronAppLogo.png"
-            alt="Aplicativo de Teoria de Filas"
+            alt="Teoria das filas: CronApp"
             width={40}
             height={40}
             className="h-8 w-auto rounded-lg sm:h-10"

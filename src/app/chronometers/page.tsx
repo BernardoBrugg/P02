@@ -136,7 +136,7 @@ export default function Chronometers() {
     <div>
       <Nav />
       <div
-        className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8 font-sans"
+        className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8"
         suppressHydrationWarning={true}
       >
         <div className="max-w-6xl mx-auto">
