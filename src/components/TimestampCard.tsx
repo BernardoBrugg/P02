@@ -13,7 +13,7 @@ export function TimestampCard() {
   }, []);
 
   return (
-    <div className="bg-gradient-to-r from-[var(--bg-gradient-start)] to-[var(--bg-gradient-end)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 mb-8 text-center">
+    <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-md mb-8 text-center">
       <div className="flex items-center justify-center mb-4">
         <svg
           className="w-8 h-8 text-[var(--accent)] mr-3"

@@ -17,7 +17,7 @@ interface ChronometerProps {
   type: "arrival" | "service";
   getNextElement: (queue: string) => number;
   currentTotal: number;
-  onRecord: (record: Record) => void;
+  onRecord: (record: Omit<Record, "id">) => void;
 }
 
 export function Chronometer({
@@ -124,7 +124,7 @@ export function Chronometer({
         timestamp: currentServicing.startTime,
         totalTime,
         element: currentServicing.element,
-        arriving: new Date().toISOString(), // This should be the arrival timestamp, but we don't have it yet
+        arriving: currentServicing.startTime,
         exiting: new Date().toISOString(),
       };
       onRecord(record);
@@ -133,12 +133,12 @@ export function Chronometer({
   };
 
   return (
-    <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 group">
+    <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-8 rounded-2xl shadow-md group">
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
           {queue}
         </h3>
-        <div className="text-4xl font-mono text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] font-bold">
+        <div className="text-4xl font-mono text-[var(--accent)] font-bold">
           {formatTime(displayTime)}
         </div>
       </div>
@@ -181,19 +181,19 @@ export function Chronometer({
             <button
               onClick={() => setStartTime(Date.now())}
               disabled={startTime !== null}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-xl font-semibold hover:from-green-500 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Start
             </button>
             <button
               onClick={stop}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-400 to-gray-600 text-white rounded-xl font-semibold hover:from-gray-500 hover:to-gray-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all duration-300 shadow-lg"
             >
               Stop
             </button>
             <button
               onClick={addArrival}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-400 to-red-500 text-white rounded-xl font-semibold hover:from-orange-500 hover:to-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg"
             >
               +1
             </button>
@@ -202,14 +202,14 @@ export function Chronometer({
           <>
             <button
               onClick={arrivedAtService}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-xl font-semibold hover:from-blue-500 hover:to-purple-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all duration-300 shadow-lg"
             >
               Chegou no atendimento
             </button>
             <button
               onClick={completedService}
               disabled={!currentServicing}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-500 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="flex-1 px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Completou atendimento
             </button>
