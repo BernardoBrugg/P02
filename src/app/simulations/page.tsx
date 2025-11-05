@@ -310,6 +310,11 @@ export default function Simulations() {
     const lambda = simLambda;
     const mu = simMu;
     const c = simNumServers;
+    const rho = lambda / (c * mu);
+    if (rho >= 1) {
+      alert("Sistema instável (ρ >= 1). A simulação não pode ser executada.");
+      return;
+    }
     const totalTime = simTime;
     let currentTime = 0;
     let nextArrival = -Math.log(Math.random()) / lambda;
@@ -476,7 +481,7 @@ export default function Simulations() {
                       <XAxis dataKey="n" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="p" fill="#8884d8" />
+                      <Bar dataKey="p" fill="var(--chart-1)" />
                     </BarChart>
                   </div>
                 </div>
@@ -589,7 +594,7 @@ export default function Simulations() {
                     <XAxis dataKey="n" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="p" fill="#8884d8" />
+                    <Bar dataKey="p" fill="var(--chart-1)" />
                   </BarChart>
                 </div>
                 <button
@@ -689,7 +694,7 @@ export default function Simulations() {
                     <Line
                       type="monotone"
                       dataKey="queueLength"
-                      stroke="#8884d8"
+                      stroke="var(--chart-1)"
                     />
                   </LineChart>
                 </div>

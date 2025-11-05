@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Nav } from "../components/Nav";
+import { Card } from "../components/ui/card";
+import { Button } from "../components/ui/button";
 
 export default function Home() {
   return (
@@ -17,7 +19,7 @@ export default function Home() {
               className="h-32 w-auto mx-auto mb-8 animate-fade-in rounded-lg"
             />
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-[var(--text-primary)] mb-12 animate-fade-in leading-tight">
-            Teoria das filas: CronApp
+              Teoria das filas: CronApp
             </h1>
             <p className="text-xl sm:text-2xl text-[var(--text-secondary)] mb-16 max-w-4xl mx-auto leading-relaxed">
               Analise sistemas de filas medindo tempos de chegada, visualizando
@@ -25,37 +27,45 @@ export default function Home() {
               Mergulhe no mundo da teoria de filas com precisão e elegância.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <Link
-                href="/chronometers"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-10 py-4 rounded-xl font-semibold uppercase tracking-wide"
+                asChild
               >
-                Iniciar Cronômetros
-              </Link>
-              <Link
-                href="/data"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                <Link href="/chronometers">Iniciar Cronômetros</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-10 py-4 rounded-xl font-semibold uppercase tracking-wide"
+                asChild
               >
-                Ver Dados
-              </Link>
-              <Link
-                href="/dashboards"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                <Link href="/data">Ver Dados</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-10 py-4 rounded-xl font-semibold uppercase tracking-wide"
+                asChild
               >
-                Ver Painéis
-              </Link>
-              <Link
-                href="/simulations"
-                className="border-2 border-[var(--accent)] text-[var(--accent)] px-10 py-4 rounded-xl font-semibold hover:bg-[var(--accent)] hover:text-white transition-all duration-300 uppercase tracking-wide"
+                <Link href="/dashboards">Ver Painéis</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-10 py-4 rounded-xl font-semibold uppercase tracking-wide"
+                asChild
               >
-                Simulações
-              </Link>
+                <Link href="/simulations">Simulações</Link>
+              </Button>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-            <div className="bg-[var(--element-bg)] p-12 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300 group">
-              <div className="w-16 h-16 bg-[var(--accent)] rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
+            <Card className="p-12 group hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300">
+              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-8 h-8 text-primary-foreground"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -78,7 +88,7 @@ export default function Home() {
               </p>
               <Link
                 href="/chronometers"
-                className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
+                className="inline-flex items-center text-primary hover:text-primary/80 font-semibold group-hover:translate-x-2 transition-transform duration-300"
               >
                 Ir para Cronômetros
                 <svg
@@ -95,11 +105,11 @@ export default function Home() {
                   />
                 </svg>
               </Link>
-            </div>
-            <div className="bg-[var(--element-bg)] p-12 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300 group">
-              <div className="w-16 h-16 bg-[var(--accent)] rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
+            </Card>
+            <Card className="p-12 group hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300">
+              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-8 h-8 text-primary-foreground"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -121,7 +131,7 @@ export default function Home() {
               </p>
               <Link
                 href="/data"
-                className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
+                className="inline-flex items-center text-primary hover:text-primary/80 font-semibold group-hover:translate-x-2 transition-transform duration-300"
               >
                 Ir para Dados
                 <svg
@@ -138,11 +148,11 @@ export default function Home() {
                   />
                 </svg>
               </Link>
-            </div>
-            <div className="bg-[var(--element-bg)] p-12 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300 group">
-              <div className="w-16 h-16 bg-[var(--accent)] rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
+            </Card>
+            <Card className="p-12 group hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300">
+              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-8 h-8 text-primary-foreground"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -164,7 +174,7 @@ export default function Home() {
               </p>
               <Link
                 href="/dashboards"
-                className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
+                className="inline-flex items-center text-primary hover:text-primary/80 font-semibold group-hover:translate-x-2 transition-transform duration-300"
               >
                 Ir para Painéis
                 <svg
@@ -181,11 +191,11 @@ export default function Home() {
                   />
                 </svg>
               </Link>
-            </div>
-            <div className="bg-[var(--element-bg)] p-12 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300 group">
-              <div className="w-16 h-16 bg-[var(--accent)] rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
+            </Card>
+            <Card className="p-12 group hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow duration-300">
+              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-8 mx-auto group-hover:scale-110 transition-transform duration-300">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-8 h-8 text-primary-foreground"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -207,7 +217,7 @@ export default function Home() {
               </p>
               <Link
                 href="/simulations"
-                className="inline-flex items-center text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold group-hover:translate-x-2 transition-transform duration-300"
+                className="inline-flex items-center text-primary hover:text-primary/80 font-semibold group-hover:translate-x-2 transition-transform duration-300"
               >
                 Ir para Simulações
                 <svg
@@ -224,7 +234,7 @@ export default function Home() {
                   />
                 </svg>
               </Link>
-            </div>
+            </Card>
           </div>
           <div className="mt-20 text-center">
             <p className="text-[var(--text-muted)] text-sm">
