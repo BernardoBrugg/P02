@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 
 interface Record {
   queue: string;
@@ -18,6 +18,7 @@ interface ChronometerProps {
   getNextElement: (queue: string) => number;
   currentTotal: number;
   onRecord: (record: Omit<Record, "id">) => void;
+  currentAppTimeMs: number;
 }
 
 export function Chronometer({
@@ -26,46 +27,25 @@ export function Chronometer({
   getNextElement,
   currentTotal,
   onRecord,
+  currentAppTimeMs,
 }: ChronometerProps) {
-  const [pendingClients, setPendingClients] = useState<
-    { element: number; arriving: number }[]
-  >([]);
+  const pendingClients: { element: number; arriving: number }[] = [];
   const [currentServicing, setCurrentServicing] = useState<{
     element: number;
     arrivedTime: number;
     startTime: string;
   } | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [displayTime, setDisplayTime] = useState(0);
-  const [currentWait, setCurrentWait] = useState(0);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+  const displayTime = useMemo(() => {
     if (type === "arrival" && startTime) {
-      interval = setInterval(() => {
-        setDisplayTime(Date.now() - startTime);
-      }, 10);
+      return currentAppTimeMs - startTime;
     } else if (type === "service" && currentServicing) {
-      interval = setInterval(() => {
-        setDisplayTime(Date.now() - currentServicing.arrivedTime);
-      }, 10);
+      return currentAppTimeMs - currentServicing.arrivedTime;
+    } else {
+      return 0;
     }
-    return () => clearInterval(interval);
-  }, [startTime, currentServicing, type]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (type === "arrival" && pendingClients.length > 0) {
-      interval = setInterval(() => {
-        setCurrentWait(Date.now() - pendingClients[0].arriving);
-      }, 10);
-    } else if (type === "service" && currentServicing) {
-      interval = setInterval(() => {
-        setCurrentWait(Date.now() - currentServicing.arrivedTime);
-      }, 10);
-    }
-    return () => clearInterval(interval);
-  }, [pendingClients, currentServicing, type]);
+  }, [currentAppTimeMs, startTime, currentServicing, type]);
+  const currentWait = 0;
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -83,15 +63,8 @@ export function Chronometer({
       .padStart(2, "0")}`;
   };
 
-  const stop = () => {
-    setStartTime(null);
-    setPendingClients([]);
-    setCurrentServicing(null);
-    setDisplayTime(0);
-  };
-
   const addArrival = () => {
-    const now = Date.now();
+    const now = currentAppTimeMs;
     if (!startTime) {
       setStartTime(now);
     }
@@ -99,10 +72,10 @@ export function Chronometer({
     const record: Record = {
       queue,
       type,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(currentAppTimeMs).toISOString(),
       totalTime: 0,
       element,
-      arriving: new Date().toISOString(),
+      arriving: new Date(currentAppTimeMs).toISOString(),
       exiting: "",
     };
     onRecord(record);
@@ -110,13 +83,13 @@ export function Chronometer({
 
   const arrivedAtService = () => {
     const element = getNextElement(queue);
-    const startTime = new Date().toISOString();
-    setCurrentServicing({ element, arrivedTime: Date.now(), startTime });
+    const startTimeStr = new Date(currentAppTimeMs).toISOString();
+    setCurrentServicing({ element, arrivedTime: currentAppTimeMs, startTime: startTimeStr });
   };
 
   const completedService = () => {
     if (currentServicing) {
-      const exitingTime = Date.now();
+      const exitingTime = currentAppTimeMs;
       const totalTime = exitingTime - currentServicing.arrivedTime;
       const record: Record = {
         queue,
@@ -125,7 +98,7 @@ export function Chronometer({
         totalTime,
         element: currentServicing.element,
         arriving: currentServicing.startTime,
-        exiting: new Date().toISOString(),
+        exiting: new Date(exitingTime).toISOString(),
       };
       onRecord(record);
       setCurrentServicing(null);
@@ -178,19 +151,6 @@ export function Chronometer({
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 justify-center">
         {type === "arrival" ? (
           <>
-            <button
-              onClick={() => setStartTime(Date.now())}
-              disabled={startTime !== null}
-              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Start
-            </button>
-            <button
-              onClick={stop}
-              className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all duration-300 shadow-lg"
-            >
-              Stop
-            </button>
             <button
               onClick={addArrival}
               className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg"

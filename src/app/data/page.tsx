@@ -3,6 +3,11 @@
 import { useState, useMemo } from "react";
 import Papa from "papaparse";
 import { Nav } from "../../components/Nav";
+import { ImportData } from "../../components/ImportData";
+import { ClearData } from "../../components/ClearData";
+import { QueueList } from "../../components/QueueList";
+import { DataTable } from "../../components/DataTable";
+import { ExportButton } from "../../components/ExportButton";
 
 interface QueueRecord {
   id: string;
@@ -68,7 +73,7 @@ export default function Data() {
             const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
             return {
               id: `import-${Date.now()}-${index}`,
-              queue: tipo as "arrival" | "service",
+              queue: importQueue.trim(),
               type: tipo as "arrival" | "service",
               timestamp,
               totalTime,
@@ -88,6 +93,34 @@ export default function Data() {
         saveData([...data, ...importedData]);
         setImportQueue("");
         event.target.value = "";
+
+        // Update queues in localStorage
+        const uniqueTypes = Array.from(
+          new Set(importedData.map((r) => r.type))
+        );
+        const newQueues = uniqueTypes.map((type) => ({
+          name: importQueue.trim(),
+          type: type as "arrival" | "service",
+        }));
+        const existingQueues = JSON.parse(
+          localStorage.getItem("queueing-queues") || "[]"
+        );
+        const updatedQueues = [...existingQueues];
+        for (const q of newQueues) {
+          if (
+            !updatedQueues.some(
+              (eq) => eq.name === q.name && eq.type === q.type
+            )
+          ) {
+            updatedQueues.push(q);
+          }
+        }
+        localStorage.setItem("queueing-queues", JSON.stringify(updatedQueues));
+
+        // Reset selection to show the queue list
+        setSelectedArrivalQueue(null);
+        setSelectedServiceQueues([]);
+
         alert(`${importedData.length} registros importados com sucesso.`);
       },
       error: (error) => {
@@ -96,39 +129,6 @@ export default function Data() {
     });
   };
 
-  const linkedData = useMemo<LinkedItem[]>(() => {
-    if (selectedArrivalQueue && selectedServiceQueues.length > 0) {
-      const arrivals = data
-        .filter((r) => r.queue === selectedArrivalQueue && r.type === "arrival")
-        .sort(
-          (a, b) =>
-            new Date(a.arriving).getTime() - new Date(b.arriving).getTime()
-        );
-      const services = data.filter(
-        (r) => selectedServiceQueues.includes(r.queue) && r.type === "service"
-      );
-      const linked: LinkedItem[] = [];
-      arrivals.forEach((arrival) => {
-        const service = services.find((s) => s.element === arrival.element);
-        if (service) {
-          linked.push({
-            customer: arrival.element,
-            arrivalTime: new Date(arrival.arriving).getTime(),
-            serviceTime: service.totalTime,
-            interarrival: 0,
-          });
-        }
-      });
-      linked.sort((a, b) => a.arrivalTime - b.arrivalTime);
-      linked.forEach((item, index) => {
-        item.interarrival =
-          index === 0 ? 0 : item.arrivalTime - linked[index - 1].arrivalTime;
-      });
-      return linked;
-    } else {
-      return [];
-    }
-  }, [selectedArrivalQueue, selectedServiceQueues, data]);
 
   const saveData = (newData: QueueRecord[]) => {
     setData(newData);
@@ -196,6 +196,14 @@ export default function Data() {
 
   const uniqueQueues = Array.from(new Set(data.map((record) => record.queue)));
 
+  const onSelectQueue = (queueName: string) => {
+    if (!selectedArrivalQueue) {
+      setSelectedArrivalQueue(queueName);
+    } else {
+      setSelectedServiceQueues((prev) => [...prev, queueName]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--element-bg)] to-[var(--bg-gradient-end)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -203,49 +211,12 @@ export default function Data() {
         <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-fade-in">
           Dados
         </h1>
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
-            Importar Dados
-          </h2>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            <input
-              type="text"
-              value={importQueue}
-              onChange={(e) => setImportQueue(e.target.value)}
-              placeholder="Nome da fila"
-              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
-            />
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImport}
-              className="flex-1 px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
-            />
-          </div>
-        </div>
-        {data.length > 0 && (
-          <div className="mb-8 text-center">
-            <button
-              onClick={clearAllData}
-              className="px-8 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
-            >
-              <svg
-                className="w-5 h-5 inline mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              Limpar Todos os Dados
-            </button>
-          </div>
-        )}
+        <ImportData
+          importQueue={importQueue}
+          setImportQueue={setImportQueue}
+          handleImport={handleImport}
+        />
+        <ClearData dataLength={data.length} clearAllData={clearAllData} />
         {data.length === 0 ? (
           <p className="text-center text-[var(--text-secondary)] animate-fade-in">
             Nenhum dado registrado ainda.
@@ -261,197 +232,28 @@ export default function Data() {
             >
               ← Voltar
             </button>
-            <div className="mb-4">
-              <button
-                onClick={() => exportToCSV(selectedArrivalQueue)}
-                className="px-8 py-3 bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white rounded-xl font-semibold hover:from-[var(--accent)] hover:to-[var(--accent)] transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <svg
-                  className="w-5 h-5 inline mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                Exportar para CSV
-              </button>
-            </div>
+            <ExportButton
+              selectedArrivalQueue={selectedArrivalQueue}
+              exportToCSV={exportToCSV}
+            />
             <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
-              {selectedArrivalQueue} & {selectedServiceQueues.join(", ")}
+              {selectedArrivalQueue}
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse bg-[var(--element-bg)] rounded-2xl shadow-xl overflow-hidden">
-                <thead className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Tipo</th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Carimbo de Data/Hora
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Tempo Total
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Elemento
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Chegando
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">
-                      Saindo
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data
-                    .filter(
-                      (record) =>
-                        record.queue === selectedArrivalQueue ||
-                        selectedServiceQueues.includes(record.queue)
-                    )
-                    .map((record, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-[var(--text-secondary)] transition-colors duration-300"
-                      >
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {record.type}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatDateWithMilliseconds(record.timestamp)}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatTime(record.totalTime)}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {record.element}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatDateWithMilliseconds(record.arriving)}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {record.exiting
-                            ? formatDateWithMilliseconds(record.exiting)
-                            : "--"}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4">
-                          <button
-                            onClick={() => deleteRecord(record)}
-                            className="text-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-300 p-2 rounded-full hover:bg-[var(--text-muted)]"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-8">
-              <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">
-                Dados Vinculados por Cliente
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse bg-[var(--element-bg)] rounded-2xl shadow-xl overflow-hidden">
-                  <thead className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] text-white">
-                    <tr>
-                      <th className="px-6 py-4 text-left font-semibold">
-                        Cliente
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold">
-                        Tempo de Chegada
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold">
-                        Tempo de Serviço
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold">
-                        Tempo Interchegada
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {linkedData.map((item, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-[var(--text-secondary)] transition-colors duration-300"
-                      >
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {item.customer}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatDateWithMilliseconds(
-                            item.arrivalTime.toString()
-                          )}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatTime(item.serviceTime)}
-                        </td>
-                        <td className="border-t border-[var(--element-border)] px-6 py-4 text-[var(--text-primary)]">
-                          {formatTime(item.interarrival)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <DataTable
+              data={data}
+              selectedArrivalQueue={selectedArrivalQueue}
+              selectedServiceQueues={selectedServiceQueues}
+              deleteRecord={deleteRecord}
+              formatTime={formatTime}
+              formatDateWithMilliseconds={formatDateWithMilliseconds}
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-            {uniqueQueues.map((queueName) => {
-              const queueData = data.filter((r) => r.queue === queueName);
-              const arrivalsCount = queueData.filter(
-                (r) => r.type === "arrival"
-              ).length;
-              const servicesCount = queueData.filter(
-                (r) => r.type === "service"
-              ).length;
-              return (
-                <div
-                  key={queueName}
-                  className="bg-[var(--bg-secondary)] p-4 rounded-lg shadow-md cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
-                  onClick={() => {
-                    if (!selectedArrivalQueue) {
-                      setSelectedArrivalQueue(queueName);
-                    } else {
-                      setSelectedServiceQueues((prev) => [...prev, queueName]);
-                    }
-                  }}
-                >
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                    {queueName}
-                  </h3>
-                  <p>
-                    <strong>Total de Registros:</strong> {queueData.length}
-                  </p>
-                  <p>
-                    <strong>Chegadas:</strong> {arrivalsCount}
-                  </p>
-                  <p>
-                    <strong>Atendimentos:</strong> {servicesCount}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+          <QueueList
+            uniqueQueues={uniqueQueues}
+            data={data}
+            onSelectQueue={onSelectQueue}
+          />
         )}
       </div>
     </div>

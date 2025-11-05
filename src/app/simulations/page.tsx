@@ -310,6 +310,11 @@ export default function Simulations() {
     const lambda = simLambda;
     const mu = simMu;
     const c = simNumServers;
+    const rho = lambda / (c * mu);
+    if (rho >= 1) {
+      alert("Sistema instável (ρ >= 1). A simulação não pode ser executada.");
+      return;
+    }
     const totalTime = simTime;
     let currentTime = 0;
     let nextArrival = -Math.log(Math.random()) / lambda;
