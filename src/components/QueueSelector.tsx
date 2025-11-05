@@ -21,6 +21,8 @@ interface QueueSelectorProps {
   setSelectedServiceQueue: (value: string) => void;
   numServers: number;
   setNumServers: (value: number) => void;
+  maxN: number;
+  setMaxN: (value: number) => void;
   calculateQueueMetrics: () => void;
   arrivalQueues: Queue[];
   serviceQueues: Queue[];
@@ -33,6 +35,8 @@ export function QueueSelector({
   setSelectedServiceQueue,
   numServers,
   setNumServers,
+  maxN,
+  setMaxN,
   calculateQueueMetrics,
   arrivalQueues,
   serviceQueues,
@@ -93,6 +97,19 @@ export function QueueSelector({
             value={numServers}
             onChange={(e) => setNumServers(parseInt(e.target.value) || 1)}
             placeholder="Ex: 1 (M/M/1), 2 (M/M/2), etc."
+            className="w-full px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-[var(--text-primary)] mb-2">
+            Número Máximo de Estados (n) para P(n)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={maxN}
+            onChange={(e) => setMaxN(parseInt(e.target.value) || 0)}
+            placeholder="Ex: 10"
             className="w-full px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
           />
         </div>

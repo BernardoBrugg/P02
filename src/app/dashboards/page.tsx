@@ -124,6 +124,7 @@ export default function Dashboards() {
   const [selectedServiceQueue, setSelectedServiceQueue] = useState("");
   const [results, setResults] = useState<QueueMetrics | null>(null);
   const [numServers, setNumServers] = useState(1);
+  const [maxN, setMaxN] = useState(10);
 
   const saveServices = (newServices: typeof services) => {
     setServices(newServices);
@@ -269,7 +270,7 @@ export default function Dashboards() {
           4
         )} ≥ 1). As fórmulas de estado estacionário não se aplicam. A fila cresce indefinidamente.`
       );
-      return;
+      // Continue calculating anyway
     }
     const factorial = (n: number): number =>
       n <= 1 ? 1 : n * factorial(n - 1);
@@ -281,7 +282,7 @@ export default function Dashboards() {
     if (numServers === 1) {
       // M/M/1
       const P0 = 1 - rho;
-      for (let n = 0; n <= 10; n++) {
+      for (let n = 0; n <= maxN; n++) {
         P[n] = P0 * Math.pow(rho, n);
       }
       Lq = lambda * avgWq;
@@ -303,7 +304,7 @@ export default function Dashboards() {
       L = Lq + lambda / mu;
       Wq = Lq / lambda;
       W = Wq + 1 / mu;
-      for (let n = 0; n <= 10; n++) {
+      for (let n = 0; n <= maxN; n++) {
         if (n < numServers) {
           P[n] = (Math.pow(lambda / mu, n) / factorial(n)) * P0;
         } else {
@@ -522,6 +523,8 @@ export default function Dashboards() {
               setSelectedServiceQueue={setSelectedServiceQueue}
               numServers={numServers}
               setNumServers={setNumServers}
+              maxN={maxN}
+              setMaxN={setMaxN}
               calculateQueueMetrics={calculateQueueMetrics}
               arrivalQueues={arrivalQueues}
               serviceQueues={serviceQueues}

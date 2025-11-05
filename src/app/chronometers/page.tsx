@@ -62,7 +62,7 @@ export default function Chronometers() {
   );
   const [milliseconds, setMilliseconds] = useState(0);
 
-  const [timeMode, setTimeMode] = useState<'default' | 'custom'>('default');
+  const [timeMode, setTimeMode] = useState<"default" | "custom">("default");
   const [customStartTime, setCustomStartTime] = useState<Date | null>(null);
 
   const setCurrentAppTime = (date: Date) => setCurrentAppTimeMs(date.getTime());
@@ -71,9 +71,9 @@ export default function Chronometers() {
     setMilliseconds(ms);
   };
 
-  const handleSetTimeMode = (mode: 'default' | 'custom') => {
+  const handleSetTimeMode = (mode: "default" | "custom") => {
     setTimeMode(mode);
-    if (mode === 'custom' && !customStartTime) {
+    if (mode === "custom" && !customStartTime) {
       const now = new Date();
       setCustomStartTime(now);
       setCurrentAppTimeMs(now.getTime());
@@ -81,7 +81,7 @@ export default function Chronometers() {
   };
 
   useEffect(() => {
-    if (timeMode === 'default') {
+    if (timeMode === "default") {
       const interval = setInterval(() => {
         setCurrentAppTimeMs(Date.now());
       }, 1000);
@@ -90,7 +90,7 @@ export default function Chronometers() {
   }, [timeMode]);
 
   useEffect(() => {
-    if (timeMode === 'custom' && milliseconds > 0 && customStartTime) {
+    if (timeMode === "custom" && milliseconds > 0 && customStartTime) {
       const interval = setInterval(() => {
         setCurrentAppTimeMs((prev) => prev + milliseconds);
       }, 1000);
@@ -212,6 +212,7 @@ export default function Chronometers() {
                 currentTotal={queueTotals[queue.name] || 0}
                 onRecord={recordEvent}
                 currentAppTimeMs={currentAppTimeMs}
+                timeMode={timeMode}
               />
             ))}
           </div>

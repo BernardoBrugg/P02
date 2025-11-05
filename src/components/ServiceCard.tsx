@@ -133,7 +133,7 @@ export function ServiceCard({
             <XAxis dataKey="n" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="p" fill="#8884d8" />
+            <Bar dataKey="p" fill="var(--chart-1)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -151,13 +151,13 @@ export function ServiceCard({
             <Line
               type="monotone"
               dataKey="arrivals"
-              stroke="#8884d8"
+              stroke="var(--chart-1)"
               name="Chegadas Cumulativas"
             />
             <Line
               type="monotone"
               dataKey="departures"
-              stroke="#82ca9d"
+              stroke="var(--chart-2)"
               name="Saídas Cumulativas"
             />
           </LineChart>

@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 interface TimeConfigProps {
-  timeMode: 'default' | 'custom';
-  setTimeMode: (mode: 'default' | 'custom') => void;
+  timeMode: "default" | "custom";
+  setTimeMode: (mode: "default" | "custom") => void;
   customStartTime: Date | null;
   setCustomStartTime: (value: Date | null) => void;
   milliseconds: number;
@@ -54,8 +54,8 @@ export function TimeConfig({
               type="radio"
               name="timeMode"
               value="default"
-              checked={timeMode === 'default'}
-              onChange={() => setTimeMode('default')}
+              checked={timeMode === "default"}
+              onChange={() => setTimeMode("default")}
               className="mr-2"
             />
             Horário Padrão
@@ -65,14 +65,14 @@ export function TimeConfig({
               type="radio"
               name="timeMode"
               value="custom"
-              checked={timeMode === 'custom'}
-              onChange={() => setTimeMode('custom')}
+              checked={timeMode === "custom"}
+              onChange={() => setTimeMode("custom")}
               className="mr-2"
             />
             Horário Personalizado
           </label>
         </div>
-        {timeMode === 'custom' && (
+        {timeMode === "custom" && (
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
@@ -103,7 +103,9 @@ export function TimeConfig({
                 placeholder="Milissegundos"
                 className="w-full px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300"
               />
-              {msError && <p className="text-red-500 text-sm mt-1">{msError}</p>}
+              {msError && (
+                <p className="text-red-500 text-sm mt-1">{msError}</p>
+              )}
             </div>
           </div>
         )}

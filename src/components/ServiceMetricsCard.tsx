@@ -76,7 +76,7 @@ export function ServiceMetricsCard({ service }: ServiceMetricsCardProps) {
           <XAxis dataKey="n" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="p" fill="#8884d8" />
+          <Bar dataKey="p" fill="var(--chart-1)" />
         </BarChart>
       </div>
     </div>
