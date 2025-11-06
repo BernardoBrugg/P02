@@ -13,6 +13,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { toast } from 'react-toastify';
 
 interface QueueMetrics {
   lambda: number;
@@ -252,7 +253,7 @@ export default function Simulations() {
       metrics: study.metrics,
     };
     saveServices([...services, newService]);
-    alert(`Estudo de caso "${study.name}" carregado com sucesso!`);
+    toast.success(`Estudo de caso "${study.name}" carregado com sucesso!`);
   };
 
   const [customLambda, setCustomLambda] = useState(0.5);
@@ -274,7 +275,7 @@ export default function Simulations() {
     const numServers = customNumServers;
     const rho = lambda / (numServers * mu);
     if (rho >= 1) {
-      alert("Sistema instável (ρ >= 1).");
+      toast.error("Sistema instável (ρ >= 1).");
       return;
     }
     const N = 1000; // Large number for summation approximation

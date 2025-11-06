@@ -25,6 +25,7 @@ interface QueueMetrics {
 }
 
 interface Service {
+  id: string;
   name: string;
   arrivalQueue: string;
   serviceQueue: string;

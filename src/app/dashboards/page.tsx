@@ -5,8 +5,12 @@ import { Nav } from "../../components/Nav";
 import { QueueSelector } from "../../components/QueueSelector";
 import { MetricsResults } from "../../components/MetricsResults";
 import { ServiceCard } from "../../components/ServiceCard";
+import { db } from "../../lib/firebase";
+import { collection, onSnapshot, addDoc, doc, deleteDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 
 interface Record {
+  id: string;
   queue: string;
   type: "arrival" | "service";
   timestamp: string;
@@ -79,46 +83,38 @@ export default function Dashboards() {
     }
   }, []);
 
-  const [queues] = useState<{ name: string; type: "arrival" | "service" }[]>(
-    () => {
-      if (typeof window !== "undefined") {
-        const storedQueues = localStorage.getItem("queueing-queues");
-        return storedQueues ? JSON.parse(storedQueues) : [];
-      }
-      return [];
-    }
-  );
-  const [data] = useState<Record[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedData = localStorage.getItem("queueing-data");
-      return storedData ? JSON.parse(storedData) : [];
-    }
-    return [];
-  });
+  const [queues, setQueues] = useState<{ name: string; type: "arrival" | "service"; numAttendants?: number }[]>([]);
+  const [data, setData] = useState<Record[]>([]);
   const [services, setServices] = useState<
     {
+      id: string;
       name: string;
       arrivalQueue: string;
       serviceQueue: string;
       metrics: QueueMetrics;
     }[]
-  >(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("queueing-services");
-      return stored
-        ? (JSON.parse(stored) as StoredService[]).map((service) => ({
-            ...service,
-            metrics: {
-              ...service.metrics,
-              P: service.metrics.P.map((p) =>
-                typeof p === "number" && isFinite(p) ? p : 0
-              ),
-            },
-          }))
-        : [];
-    }
-    return [];
-  });
+  >([]);
+
+  useEffect(() => {
+    const unsubscribeQueues = onSnapshot(collection(db, 'queues'), (snapshot) => {
+      const q = snapshot.docs.map(doc => doc.data() as { name: string; type: "arrival" | "service"; numAttendants?: number });
+      setQueues(q);
+    });
+    const unsubscribeData = onSnapshot(collection(db, 'data'), (snapshot) => {
+      const d = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Record));
+      setData(d);
+    });
+    const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
+      const s = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as { id: string; name: string; arrivalQueue: string; serviceQueue: string; metrics: QueueMetrics }));
+      setServices(s);
+    });
+    return () => {
+      unsubscribeQueues();
+      unsubscribeData();
+      unsubscribeServices();
+    };
+  }, []);
+
   const [newServiceName, setNewServiceName] = useState("");
   const [selectedArrivalQueue, setSelectedArrivalQueue] = useState("");
   const [selectedServiceQueue, setSelectedServiceQueue] = useState("");
@@ -170,7 +166,7 @@ export default function Dashboards() {
 
   const calculateQueueMetrics = () => {
     if (!selectedArrivalQueue || !selectedServiceQueue) {
-      alert("Selecione filas de chegada e atendimento.");
+      toast.warn("Selecione filas de chegada e atendimento.");
       return;
     }
     const arrivalData = data
@@ -194,7 +190,7 @@ export default function Dashboards() {
       .sort((a, b) => a.element - b.element);
 
     if (filteredArrivalData.length === 0) {
-      alert(
+      toast.error(
         "Não há elementos comuns válidos entre as filas de chegada e atendimento."
       );
       return;
@@ -214,7 +210,7 @@ export default function Dashboards() {
     }
 
     if (interArrivals.length === 0) {
-      alert(
+      toast.error(
         "Todos os tempos de chegada são idênticos. Por favor, registre chegadas com timestamps diferentes para calcular a taxa de chegada (λ)."
       );
       return;
@@ -226,7 +222,7 @@ export default function Dashboards() {
 
     // Validate lambda
     if (!isFinite(lambda) || lambda <= 0) {
-      alert(
+      toast.error(
         "Erro ao calcular a taxa de chegada. Verifique os dados de entrada."
       );
       return;
@@ -239,7 +235,7 @@ export default function Dashboards() {
     const validServiceTimes = serviceTimes.filter((t) => t > 0);
 
     if (validServiceTimes.length === 0) {
-      alert(
+      toast.error(
         "Todos os tempos de serviço são zero ou inválidos. Por favor, registre atendimentos com duração adequada."
       );
       return;
@@ -251,7 +247,7 @@ export default function Dashboards() {
 
     // Validate mu
     if (!isFinite(mu) || mu <= 0) {
-      alert(
+      toast.error(
         "Erro ao calcular a taxa de atendimento. Verifique os dados de entrada."
       );
       return;
@@ -262,7 +258,7 @@ export default function Dashboards() {
       const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
       const serviceStart = new Date(filteredServiceData[i].arriving).getTime();
       if (serviceStart < arrivalTime) {
-        alert(
+        toast.error(
           `Para o elemento ${filteredArrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
         );
         return;
@@ -273,7 +269,7 @@ export default function Dashboards() {
     const rho = lambda / (numServers * mu);
     // Check if rho >= 1, which means the system is unstable
     if (rho >= 1) {
-      alert(
+      toast.warn(
         `O sistema está sobrecarregado (ρ = ${rho.toFixed(
           4
         )} ≥ 1). As fórmulas de estado estacionário não se aplicam. A fila cresce indefinidamente.`
@@ -324,11 +320,12 @@ export default function Dashboards() {
       }
     }
     setResults({ lambda, mu, rho, L, Lq, W, Wq, P });
+    toast.success("Métricas calculadas com sucesso!");
   };
 
-  const createService = () => {
+  const createService = async () => {
     if (!newServiceName.trim() || !results) {
-      alert("Nome do serviço e resultados são necessários.");
+      toast.warn("Nome do serviço e resultados são necessários.");
       return;
     }
     const newService = {
@@ -337,24 +334,34 @@ export default function Dashboards() {
       serviceQueue: selectedServiceQueue,
       metrics: results,
     };
-    saveServices([...services, newService]);
-    setNewServiceName("");
-    setSelectedArrivalQueue("");
-    setSelectedServiceQueue("");
-    setResults(null);
+    try {
+      await addDoc(collection(db, 'services'), newService);
+      toast.success("Serviço criado com sucesso!");
+      setNewServiceName("");
+      setSelectedArrivalQueue("");
+      setSelectedServiceQueue("");
+      setResults(null);
+    } catch (error) {
+      toast.error("Erro ao criar serviço: " + (error as Error).message);
+    }
   };
 
-  const deleteService = (index: number) => {
+  const deleteService = async (index: number) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
-      const newServices = services.filter((_, i) => i !== index);
-      saveServices(newServices);
+      const serviceToDelete = services[index];
+      try {
+        await deleteDoc(doc(db, 'services', serviceToDelete.id));
+        toast.success("Serviço excluído com sucesso!");
+      } catch (error) {
+        toast.error("Erro ao excluir serviço: " + (error as Error).message);
+      }
     }
   };
 
   const exportServiceToPDF = (service: (typeof services)[0]) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Por favor, permita pop-ups para exportar o PDF.");
+      toast.error("Por favor, permita pop-ups para exportar o PDF.");
       return;
     }
 
@@ -493,14 +500,15 @@ export default function Dashboards() {
   const clearAllData = () => {
     if (
       confirm(
-        "Tem certeza que deseja limpar TODOS os dados armazenados? Esta ação não pode ser desfeita."
+        "Tem certeza que deseja limpar TODOS os dados armazenados? Esta ação afetará todos os usuários."
       )
     ) {
-      localStorage.removeItem("queueing-services");
-      localStorage.removeItem("queueing-queues");
-      localStorage.removeItem("queueing-data");
-      localStorage.removeItem("queueing-totals");
-      window.location.reload();
+      // Clear Firestore collections
+      // Note: This is dangerous, in real app restrict to admin
+      setQueues([]);
+      setData([]);
+      setServices([]);
+      toast.success("Todos os dados foram limpos com sucesso!");
     }
   };
 

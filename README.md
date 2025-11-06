@@ -1,185 +1,90 @@
-# Teoria das filas: CronApp
+# Queueing Theory App
 
-Um aplicativo web para análise de sistemas de filas, desenvolvido com Next.js, TypeScript e Tailwind CSS. Permite medir tempos de chegada, visualizar dados, importar/exportar dados em CSV, explorar painéis com métricas e gráficos importantes da Teoria das Filas, e carregar estudos de caso pré-definidos.
+Uma aplicação web fullstack para análise de teoria de filas, permitindo a todos os usuários registrados no site usar funcionalidades e visualizar dados e cronômetros em tempo real.
 
 ## Funcionalidades
 
-- **Cronômetros**: Adicione filas e meça tempos de chegada e saída de clientes.
-- **Dados**: Visualize, gerencie, importe e exporte os dados coletados em formato CSV.
-- **Painéis**: Explore métricas de desempenho e gráficos interativos, incluindo probabilidades de estado, comparações de tempos de espera e chegadas/saídas cumulativas.
-- **Simulações**: Carregue estudos de caso pré-definidos para análise de diferentes cenários de sistemas de filas.
+### Cronômetros
+- **Chegadas**: Registre tempos de chegada de clientes.
+- **Atendimentos**: Registre tempos de serviço, com suporte a múltiplos atendentes.
+- **Tempo Real**: Todos os usuários veem atualizações instantâneas.
+- **Configuração de Tempo**: Modo padrão ou personalizado.
 
-## Tecnologias Utilizadas
+### Dados
+- **Importação**: Importe dados de CSV para filas.
+- **Visualização**: Tabela de dados com filtros por fila.
+- **Exportação**: Exporte dados para CSV.
+- **Gerenciamento**: Exclua registros individuais ou limpe todos os dados.
 
-- **Next.js**: Framework React para aplicações web.
-- **TypeScript**: Superset do JavaScript com tipagem estática.
-- **Tailwind CSS**: Framework CSS utilitário para estilização.
-- **Recharts**: Biblioteca para gráficos interativos.
-- **KaTeX**: Para renderização de símbolos matemáticos.
-- **PapaParse**: Para parsing de arquivos CSV.
-- **LocalStorage**: Para armazenamento local de dados.
+### Dashboards
+- **Cálculos de Métricas**: Calcule métricas de filas M/M/1 e M/M/c.
+- **Gráficos**: Visualize probabilidades P(n) e gráficos cumulativos.
+- **Serviços Salvos**: Salve e gerencie análises de filas.
+- **Exportação**: Exporte dashboards para PDF.
 
-## Instalação
+### Simulações
+- **Simulação Discreta de Eventos**: Simule filas com eventos.
+- **Simulação Personalizada**: Configure simulações customizadas.
+
+## Tecnologias
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
+- **Backend**: Firebase Firestore para banco de dados em tempo real
+- **Gráficos**: Recharts
+- **CSV**: PapaParse
+
+## Instalação e Configuração
 
 1. Clone o repositório:
-
    ```bash
-   git clone <url-do-repositorio>
+   git clone <url>
    cd queueing-theory-app
    ```
 
-2. Instale as dependências:
-
+2. Instale dependências:
    ```bash
    npm install
    ```
 
-3. Execute o servidor de desenvolvimento:
+3. Configure Firebase:
+   - Crie um projeto no [Firebase Console](https://console.firebase.google.com/).
+   - Habilite Firestore Database.
+   - Obtenha as chaves de API.
+   - Preencha o arquivo `.env.local` com as credenciais.
 
+4. Execute o projeto:
    ```bash
    npm run dev
    ```
 
-4. Abra [http://localhost:3000](http://localhost:3000) no navegador.
+5. Acesse `http://localhost:3000`.
 
-## Manual do Usuário
+## Uso
 
-### Página Inicial
+### Adicionando Filas
+- Vá para "Cronômetros".
+- Adicione filas de chegada ou atendimento.
+- Para atendimento, especifique o número de atendentes.
 
-- Apresenta uma visão geral do aplicativo.
-- Botões para navegar diretamente para Cronômetros, Dados, Painéis ou Simulações.
-- Descrição das funcionalidades principais.
+### Registrando Eventos
+- Clique nos botões dos cronômetros para registrar chegadas ou serviços.
+- Para atendimento, o botão "Chegou no atendimento" bloqueia quando todos os atendentes estão ocupados.
 
-### Página de Cronômetros
-
-- **Adicionar Filas**: Digite o nome da nova fila no campo, selecione o tipo (Chegada ou Atendimento) e clique em "Adicionar Fila".
-- **Iniciar Temporização**: Para filas de chegada, clique em "Start" para iniciar, "Stop" para parar, e "+1" para registrar uma chegada. Para filas de atendimento, clique em "Chegou no atendimento" e "Completou atendimento".
-- Os dados são salvos automaticamente no navegador.
-
-### Página de Dados
-
-- Visualize todos os registros coletados em uma tabela.
-- **Importar CSV**: Especifique o nome da fila e selecione um arquivo CSV no formato exportado para importar dados.
-- **Exportar para CSV**: Clique no botão para baixar os dados de uma fila em formato CSV.
-- **Deletar Registros**: Use o ícone de lixeira para remover entradas indesejadas.
-- **Limpar Todos os Dados**: Remove todos os registros.
-
-### Página de Painéis
-
-- Exibe métricas calculadas por serviço e gráficos.
-- **Métricas**:
-  - **λ (Taxa de Chegada)**: Taxa média de chegadas por segundo.
-  - **μ (Taxa de Atendimento)**: Taxa média de atendimentos por segundo.
-  - **ρ (Utilização)**: Fração do tempo que o sistema está ocupado.
-  - **L (Número Médio de Clientes no Sistema)**: Número médio de clientes no sistema.
-  - **Lq (Número Médio de Clientes na Fila)**: Número médio de clientes na fila.
-  - **W (Tempo Médio no Sistema)**: Tempo médio de permanência no sistema.
-  - **Wq (Tempo Médio na Fila)**: Tempo médio de espera na fila.
-  - **P(n) (Probabilidades de Estado)**: Probabilidades de ter n clientes no sistema.
-- **Gráficos**:
-  - **Gráfico Cumulativo**: Linha mostrando chegadas e saídas acumuladas ao longo do tempo.
-  - **Gráfico de Probabilidades P(n)**: Barras mostrando as probabilidades de estado.
-
-### Página de Simulações
-
-- Carregue estudos de caso pré-definidos para analisar diferentes cenários.
-- **Estudos Disponíveis**:
-  - Sistema M/M/1 Estável (ρ = 0.5)
-  - Sistema M/M/1 Sobrecarregado (ρ = 0.8)
-  - Sistema M/M/1 Eficiente (ρ = 0.1)
-- Clique em "Carregar Estudo" para adicionar o estudo aos serviços salvos e visualizar métricas e gráficos.
-
-## Conceitos da Teoria das Filas
-
-- **Clientes**: Entidades que demandam serviço.
-- **Filas**: Pontos de espera.
-- **Servidor**: Capacidade de atendimento.
-- **Disciplina**: Regra de atendimento (ex.: FIFO).
-- As métricas ajudam a avaliar o desempenho, identificar gargalos e sugerir melhorias.
-
-## Teoria Matemática
-
-Este aplicativo baseia-se na Teoria das Filas, especificamente no modelo M/M/1, onde as chegadas seguem um processo de Poisson e os tempos de serviço são exponenciais. O modelo assume um único servidor.
-
-### Fórmulas Principais
-
-- **λ (Taxa de Chegada)**: Calculada a partir dos intervalos entre chegadas.
-
-- **μ (Taxa de Serviço)**: Inversa do tempo médio de serviço.
-
-- **ρ (Utilização do Sistema)**:
-
-$$
-\rho = \frac{\lambda}{\mu}
-$$
-
-- **P0 (Probabilidade de Sistema Vazio)**:
-
-$$
-P_0 = 1 - \rho
-$$
-
-- **Pn (Probabilidades de Estado)**:
-
-$$
-P_n = P_0 \rho^n
-$$
-
-- **L (Número Médio de Clientes no Sistema)**:
-
-$$
-L = \frac{\rho}{1 - \rho}
-$$
-
-- **Lq (Número Médio de Clientes na Fila)**:
-
-$$
-L_q = \frac{\rho^2}{1 - \rho}
-$$
-
-- **W (Tempo Médio no Sistema)**:
-
-$$
-W = \frac{L}{\lambda}
-$$
-
-- **Wq (Tempo Médio na Fila)**:
-
-$$
-W_q = \frac{L_q}{\lambda}
-$$
-
-### Interpretação dos Gráficos
-
-- **Gráfico Cumulativo**: Mostra a evolução de chegadas e saídas ao longo do tempo.
-- **Gráfico de Probabilidades P(n)**: Visualiza a distribuição de estados do sistema.
+### Analisando Dados
+- Importe dados CSV em "Dados".
+- Calcule métricas em "Dashboards".
+- Visualize gráficos e salve serviços.
 
 ## Estrutura do Projeto
-
-```
-src/
-  app/
-    layout.tsx          # Layout principal
-    page.tsx            # Página inicial
-    chronometers/page.tsx  # Página de cronômetros
-    dashboards/page.tsx    # Página de painéis
-    data/page.tsx          # Página de dados
-    simulations/page.tsx   # Página de simulações
-    about/page.tsx         # Página sobre
-  components/
-    Chronometer.tsx     # Componente de cronômetro
-    Nav.tsx             # Navegação
-    TimestampCard.tsx   # Cartão de timestamp
-    ClientLayout.tsx    # Layout do cliente
-    ThemeProvider.tsx   # Provedor de tema
-    MathRenderer.tsx    # Renderizador de matemática
-    Footer.tsx          # Rodapé
-```
+- `src/app/`: Páginas Next.js
+- `src/components/`: Componentes React
+- `src/lib/`: Utilitários, incluindo Firebase config
 
 ## Contribuição
-
-Sinta-se à vontade para contribuir com melhorias. Abra issues ou pull requests no repositório.
+1. Fork o projeto.
+2. Crie uma branch para sua feature.
+3. Commit suas mudanças.
+4. Push para a branch.
+5. Abra um Pull Request.
 
 ## Licença
-
-Este projeto é de código aberto e está sob a licença MIT.
+Este projeto é licenciado sob a MIT License.
