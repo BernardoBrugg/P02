@@ -13,6 +13,8 @@ interface AddQueueProps {
   setNewQueue: (value: string) => void;
   newQueueType: "arrival" | "service";
   setNewQueueType: (value: "arrival" | "service") => void;
+  numAttendants: number;
+  setNumAttendants: (value: number) => void;
   addQueue: () => void;
 }
 
@@ -21,6 +23,8 @@ export function AddQueue({
   setNewQueue,
   newQueueType,
   setNewQueueType,
+  numAttendants,
+  setNumAttendants,
   addQueue,
 }: AddQueueProps) {
   return (
@@ -47,6 +51,16 @@ export function AddQueue({
             <SelectItem value="service">Atendimento</SelectItem>
           </SelectContent>
         </Select>
+        {newQueueType === "service" && (
+          <input
+            type="number"
+            min="1"
+            value={numAttendants}
+            onChange={(e) => setNumAttendants(parseInt(e.target.value) || 1)}
+            placeholder="Nº de Atendentes"
+            className="px-4 py-3 border border-[var(--element-border)] rounded-xl bg-[var(--element-bg)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all duration-300 w-32"
+          />
+        )}
         <Button onClick={addQueue} className="px-6 py-3">
           <svg
             className="w-5 h-5 inline mr-2"

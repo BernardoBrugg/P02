@@ -20,7 +20,7 @@ interface Record {
 
 export default function Chronometers() {
   const [queues, setQueues] = useState<
-    { name: string; type: "arrival" | "service" }[]
+    { name: string; type: "arrival" | "service"; numAttendants?: number }[]
   >(() => {
     if (typeof window !== "undefined") {
       const storedQueues = localStorage.getItem("queueing-queues");
@@ -32,6 +32,7 @@ export default function Chronometers() {
   const [newQueueType, setNewQueueType] = useState<"arrival" | "service">(
     "arrival"
   );
+  const [numAttendants, setNumAttendants] = useState(1);
   const [data, setData] = useState<Record[]>(() => {
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem("queueing-data");
@@ -99,7 +100,11 @@ export default function Chronometers() {
   }, [timeMode, milliseconds, customStartTime]);
 
   const saveQueues = (
-    newQueues: { name: string; type: "arrival" | "service" }[]
+    newQueues: {
+      name: string;
+      type: "arrival" | "service";
+      numAttendants?: number;
+    }[]
   ) => {
     setQueues(newQueues);
     localStorage.setItem("queueing-queues", JSON.stringify(newQueues));
@@ -122,7 +127,11 @@ export default function Chronometers() {
     ) {
       const newQueues = [
         ...queues,
-        { name: newQueue.trim(), type: newQueueType },
+        {
+          name: newQueue.trim(),
+          type: newQueueType,
+          ...(newQueueType === "service" ? { numAttendants } : {}),
+        },
       ];
       saveQueues(newQueues);
       setNewQueue("");
@@ -198,6 +207,8 @@ export default function Chronometers() {
               setNewQueue={setNewQueue}
               newQueueType={newQueueType}
               setNewQueueType={setNewQueueType}
+              numAttendants={numAttendants}
+              setNumAttendants={setNumAttendants}
               addQueue={addQueue}
             />
           </div>

@@ -179,25 +179,33 @@ export default function Dashboards() {
     const serviceData = data
       .filter((d) => d.queue === selectedServiceQueue && d.type === "service")
       .sort((a, b) => a.element - b.element);
-    if (arrivalData.length !== serviceData.length || arrivalData.length === 0) {
-      alert("As filas devem ter o mesmo número de elementos e pelo menos um.");
+
+    const arrivalElements = new Set(arrivalData.map((d) => d.element));
+    const serviceElements = new Set(serviceData.map((d) => d.element));
+    const commonElements = new Set(
+      [...arrivalElements].filter((e) => serviceElements.has(e))
+    );
+
+    const filteredArrivalData = arrivalData
+      .filter((d) => commonElements.has(d.element))
+      .sort((a, b) => a.element - b.element);
+    const filteredServiceData = serviceData
+      .filter((d) => commonElements.has(d.element))
+      .sort((a, b) => a.element - b.element);
+
+    if (filteredArrivalData.length === 0) {
+      alert(
+        "Não há elementos comuns válidos entre as filas de chegada e atendimento."
+      );
       return;
     }
-    // Check if elements match
-    for (let i = 0; i < arrivalData.length; i++) {
-      if (arrivalData[i].element !== serviceData[i].element) {
-        alert(
-          "Os elementos das filas não correspondem. Certifique-se de que o elemento 'n' representa o mesmo cliente em ambas as filas."
-        );
-        return;
-      }
-    }
+
     // Compute inter-arrivals for lambda
     const interArrivals = [];
-    for (let i = 1; i < arrivalData.length; i++) {
+    for (let i = 1; i < filteredArrivalData.length; i++) {
       const diff =
-        (new Date(arrivalData[i].timestamp).getTime() -
-          new Date(arrivalData[i - 1].timestamp).getTime()) /
+        (new Date(filteredArrivalData[i].timestamp).getTime() -
+          new Date(filteredArrivalData[i - 1].timestamp).getTime()) /
         1000;
       // Only include non-zero inter-arrivals
       if (diff > 0) {
@@ -225,7 +233,7 @@ export default function Dashboards() {
     }
 
     // Compute service times for mu
-    const serviceTimes = serviceData.map((s) => s.totalTime / 1000);
+    const serviceTimes = filteredServiceData.map((s) => s.totalTime / 1000);
 
     // Filter out zero or negative service times
     const validServiceTimes = serviceTimes.filter((t) => t > 0);
@@ -250,12 +258,12 @@ export default function Dashboards() {
     }
     // Compute empirical waiting times
     const waitingTimes = [];
-    for (let i = 0; i < arrivalData.length; i++) {
-      const arrivalTime = new Date(arrivalData[i].timestamp).getTime();
-      const serviceStart = new Date(serviceData[i].arriving).getTime();
+    for (let i = 0; i < filteredArrivalData.length; i++) {
+      const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
+      const serviceStart = new Date(filteredServiceData[i].arriving).getTime();
       if (serviceStart < arrivalTime) {
         alert(
-          `Para o elemento ${arrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
+          `Para o elemento ${filteredArrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
         );
         return;
       }
