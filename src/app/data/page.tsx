@@ -70,7 +70,19 @@ export default function Data() {
             const elemento = parseInt(row["Elemento"]);
             const chegando = row["Chegando"];
             const saindo = row["Saindo"];
+            if (
+              !tipo ||
+              !timestamp ||
+              isNaN(elemento) ||
+              !tempoTotalStr ||
+              typeof tempoTotalStr !== "string"
+            ) {
+              return null;
+            }
             const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
+            if (isNaN(totalTime)) {
+              return null;
+            }
             return {
               id: `import-${Date.now()}-${index}`,
               queue: importQueue.trim(),
@@ -82,10 +94,7 @@ export default function Data() {
               exiting: saindo === "--" ? "" : saindo,
             };
           })
-          .filter(
-            (r) =>
-              r.type && r.timestamp && !isNaN(r.element) && !isNaN(r.totalTime)
-          );
+          .filter((r) => r !== null);
         if (importedData.length === 0) {
           alert("Nenhum dado válido encontrado no CSV.");
           return;
@@ -128,7 +137,6 @@ export default function Data() {
       },
     });
   };
-
 
   const saveData = (newData: QueueRecord[]) => {
     setData(newData);

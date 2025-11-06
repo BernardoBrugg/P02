@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Chronometer } from "./Chronometer";
 
 interface QueueItemProps {
-  queue: { name: string; type: "arrival" | "service" };
+  queue: { name: string; type: "arrival" | "service"; numAttendants?: number };
   index: number;
   removeQueue: (index: number) => void;
   getNextElement: (queue: string) => number;
@@ -67,6 +67,7 @@ export function QueueItem({
         onRecord={onRecord}
         currentAppTimeMs={currentAppTimeMs}
         timeMode={timeMode}
+        numAttendants={queue.numAttendants || 1}
       />
     </div>
   );

@@ -265,7 +265,11 @@ export function DiscreteEventSimulation({
               <XAxis dataKey="time" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="queueLength" stroke="var(--chart-1)" />
+              <Line
+                type="monotone"
+                dataKey="queueLength"
+                stroke="var(--chart-1)"
+              />
               <Line
                 type="monotone"
                 dataKey="serverUtilization"
