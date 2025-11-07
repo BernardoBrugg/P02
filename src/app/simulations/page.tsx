@@ -35,6 +35,7 @@ interface CaseStudy {
 }
 
 interface StoredService {
+  id: string;
   name: string;
   arrivalQueue: string;
   serviceQueue: string;
@@ -46,9 +47,12 @@ interface StoredService {
     Lq: number;
     W: number;
     Wq: number;
-    P: (number | null)[];
+    P: number[];
     numServers: number;
   };
+  serviceTimes: number[];
+  waitingTimes: number[];
+  idleTimes: number[];
 }
 
 const caseStudies: CaseStudy[] = [
@@ -246,11 +250,15 @@ export default function Simulations() {
   };
 
   const loadCaseStudy = (study: CaseStudy) => {
-    const newService = {
+    const newService: StoredService = {
+      id: crypto.randomUUID(),
       name: study.name,
       arrivalQueue: "Chegada Exemplo",
       serviceQueue: "Atendimento Exemplo",
       metrics: study.metrics,
+      serviceTimes: [],
+      waitingTimes: [],
+      idleTimes: [],
     };
     saveServices([...services, newService]);
     toast.success(`Estudo de caso "${study.name}" carregado com sucesso!`);

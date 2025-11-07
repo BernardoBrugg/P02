@@ -44,7 +44,6 @@ export default function Data() {
   const [selectedServiceQueues, setSelectedServiceQueues] = useState<string[]>(
     []
   );
-  const [importQueue, setImportQueue] = useState("");
 
   useEffect(() => {
     const unsubscribeData = onSnapshot(collection(db, 'data'), (snapshot) => {
@@ -68,67 +67,87 @@ export default function Data() {
   }, []);
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !importQueue.trim()) {
-      toast.warn("Selecione um arquivo e especifique o nome da fila.");
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      toast.warn("Selecione um ou mais arquivos.");
       return;
     }
-    Papa.parse(file, {
-      header: true,
-      delimiter: ";",
-      complete: (results) => {
-        const importedData: ImportedRecord[] = (
-          results.data as Record<string, string>[]
-        )
-          .map((row) => {
-            const tipo = row["Tipo"];
-            const timestamp = row["Carimbo de Data/Hora"];
-            const tempoTotalStr = row["Tempo Total"];
-            const elemento = parseInt(row["Elemento"]);
-            const chegando = row["Chegando"];
-            const saindo = row["Saindo"];
-            if (
-              !tipo ||
-              !timestamp ||
-              isNaN(elemento) ||
-              !tempoTotalStr ||
-              typeof tempoTotalStr !== "string"
-            ) {
-              return null;
+    let totalImported = 0;
+    let filesProcessed = 0;
+    const totalFiles = files.length;
+
+    Array.from(files).forEach((file) => {
+      const importQueue = file.name.split(".")[0];
+      Papa.parse(file, {
+        header: true,
+        complete: (results) => {
+          const importedData: ImportedRecord[] = (
+            results.data as Record<string, string>[]
+          )
+            .map((row) => {
+              const tipo = row["Tipo"];
+              const timestamp = row["Carimbo de Data/Hora"];
+              const tempoTotalStr = row["Tempo Total"];
+              const elemento = parseInt(row["Elemento"]);
+              const chegando = row["Chegando"];
+              const saindo = row["Saindo"];
+              if (
+                !tipo ||
+                !timestamp ||
+                isNaN(elemento) ||
+                !tempoTotalStr ||
+                typeof tempoTotalStr !== "string"
+              ) {
+                return null;
+              }
+              const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
+              if (isNaN(totalTime)) {
+                return null;
+              }
+              return {
+                queue: importQueue.trim(),
+                type: tipo as "arrival" | "service",
+                timestamp,
+                totalTime,
+                element: elemento,
+                arriving: chegando,
+                exiting: saindo === "--" ? "" : saindo,
+              };
+            })
+            .filter((r) => r !== null);
+          if (importedData.length > 0) {
+            // Add to Firestore
+            importedData.forEach(record => addDoc(collection(db, 'data'), record));
+            // Add queue if not exists
+            const queueExists = queues.some(q => q.name === importQueue.trim());
+            if (!queueExists) {
+              setDoc(doc(db, 'queues', importQueue.trim()), {name: importQueue.trim(), type: importedData[0].type});
             }
-            const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
-            if (isNaN(totalTime)) {
-              return null;
+            totalImported += importedData.length;
+          }
+          filesProcessed++;
+          if (filesProcessed === totalFiles) {
+            event.target.value = "";
+            if (totalImported > 0) {
+              toast.success(`${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`);
+            } else {
+              toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
             }
-            return {
-              queue: importQueue.trim(),
-              type: tipo as "arrival" | "service",
-              timestamp,
-              totalTime,
-              element: elemento,
-              arriving: chegando,
-              exiting: saindo === "--" ? "" : saindo,
-            };
-          })
-          .filter((r) => r !== null);
-        if (importedData.length === 0) {
-          toast.error("Nenhum dado válido encontrado no CSV.");
-          return;
-        }
-        // Add to Firestore
-        importedData.forEach(record => addDoc(collection(db, 'data'), record));
-        // Add queue if not exists
-        const queueExists = queues.some(q => q.name === importQueue.trim());
-        if (!queueExists) {
-          setDoc(doc(db, 'queues', importQueue.trim()), {name: importQueue.trim(), type: importedData[0].type});
-        }
-        setImportQueue("");
-        event.target.value = "";
-        toast.success(`${importedData.length} registros importados com sucesso.`);
-      },
-      error: (error) => {
-        toast.error("Erro ao importar CSV: " + (error as Error).message);
-      },
+          }
+        },
+        error: (error) => {
+          toast.error("Erro ao importar CSV: " + (error as Error).message);
+          filesProcessed++;
+          if (filesProcessed === totalFiles) {
+            event.target.value = "";
+            if (totalImported > 0) {
+              toast.success(`${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`);
+            } else {
+              toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
+            }
+          }
+        },
+      });
     });
   };
 
@@ -214,8 +233,6 @@ export default function Data() {
           Dados
         </h1>
         <ImportData
-          importQueue={importQueue}
-          setImportQueue={setImportQueue}
           handleImport={handleImport}
         />
         <ClearData dataLength={data.length} clearAllData={clearAllData} />

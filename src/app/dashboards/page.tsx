@@ -29,6 +29,11 @@ interface QueueMetrics {
   W: number;
   Wq: number;
   P: number[];
+  idleTime: number;
+  idleProportion: number;
+  avgServiceTime: number;
+  idleTimes: number[];
+  waitingTimes: number[];
 }
 
 interface Event {
@@ -55,7 +60,14 @@ interface StoredService {
     W: number;
     Wq: number;
     P: (number | null)[];
+    idleTime: number;
+    idleProportion: number;
+    avgServiceTime: number;
+    idleTimes: number[];
+    waitingTimes: number[];
   };
+  serviceTimes: number[];
+  timestamps: number[];
 }
 
 export default function Dashboards() {
@@ -92,8 +104,12 @@ export default function Dashboards() {
       arrivalQueue: string;
       serviceQueue: string;
       metrics: QueueMetrics;
+      serviceTimes: number[];
+      timestamps: number[];
     }[]
   >([]);
+  const [validServiceTimes, setValidServiceTimes] = useState<number[]>([]);
+  const [timestamps, setTimestamps] = useState<number[]>([]);
 
   useEffect(() => {
     const unsubscribeQueues = onSnapshot(collection(db, 'queues'), (snapshot) => {
@@ -105,7 +121,7 @@ export default function Dashboards() {
       setData(d);
     });
     const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
-      const s = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as { id: string; name: string; arrivalQueue: string; serviceQueue: string; metrics: QueueMetrics }));
+      const s = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as { id: string; name: string; arrivalQueue: string; serviceQueue: string; metrics: QueueMetrics; serviceTimes: number[]; timestamps: number[] }));
       setServices(s);
     });
     return () => {
@@ -121,11 +137,6 @@ export default function Dashboards() {
   const [results, setResults] = useState<QueueMetrics | null>(null);
   const [numServers, setNumServers] = useState(1);
   const [maxN, setMaxN] = useState(10);
-
-  const saveServices = (newServices: typeof services) => {
-    setServices(newServices);
-    localStorage.setItem("queueing-services", JSON.stringify(newServices));
-  };
 
   const getCumulativeData = (service: (typeof services)[0]) => {
     const arrivalData = data
@@ -241,6 +252,9 @@ export default function Dashboards() {
       return;
     }
 
+    setValidServiceTimes(validServiceTimes);
+    setTimestamps(filteredServiceData.map((s) => new Date(s.arriving).getTime()));
+
     const avgServiceTime =
       validServiceTimes.reduce((a, b) => a + b, 0) / validServiceTimes.length;
     const mu = 1 / avgServiceTime;
@@ -319,7 +333,21 @@ export default function Dashboards() {
         }
       }
     }
-    setResults({ lambda, mu, rho, L, Lq, W, Wq, P });
+    // Calculate idle time empirically
+    const idleTimes: number[] = [];
+    let serverBusyUntil = new Date(filteredArrivalData[0].timestamp).getTime();
+    let totalIdleTime = 0;
+    for (let i = 0; i < filteredServiceData.length; i++) {
+      const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
+      const serviceTime = filteredServiceData[i].totalTime;  // in ms
+      const idleForThis = Math.max(0, arrivalTime - serverBusyUntil);
+      idleTimes.push(idleForThis / 1000);
+      totalIdleTime += idleForThis;
+      serverBusyUntil = Math.max(serverBusyUntil, arrivalTime) + serviceTime;
+    }
+    const idleTime = totalIdleTime / 1000;
+    const idleProportion = idleTime / ((serverBusyUntil - new Date(filteredArrivalData[0].timestamp).getTime()) / 1000);
+    setResults({ lambda, mu, rho, L, Lq, W, Wq, P, idleTime, idleProportion, avgServiceTime, idleTimes, waitingTimes });
     toast.success("Métricas calculadas com sucesso!");
   };
 
@@ -333,6 +361,8 @@ export default function Dashboards() {
       arrivalQueue: selectedArrivalQueue,
       serviceQueue: selectedServiceQueue,
       metrics: results,
+      serviceTimes: validServiceTimes,
+      timestamps: timestamps,
     };
     try {
       await addDoc(collection(db, 'services'), newService);
@@ -456,6 +486,16 @@ export default function Dashboards() {
                 ? service.metrics.P[0].toFixed(4)
                 : "N/A"
             }</div>
+            <div class="metric"><strong>Tempo Ocioso Médio:</strong> ${
+              isFinite(service.metrics.idleTime)
+                ? service.metrics.idleTime.toFixed(4)
+                : "N/A"
+            } s</div>
+            <div class="metric"><strong>Proporção Ociosa:</strong> ${
+              isFinite(service.metrics.idleProportion)
+                ? service.metrics.idleProportion.toFixed(4)
+                : "N/A"
+            }</div>
           </div>
           
           <h2>Probabilidades de Estado P(n)</h2>
@@ -477,6 +517,25 @@ export default function Dashboards() {
               ).join("")}
             </tbody>
           </table>
+          
+          <h2>Comparação de Tempos Médios</h2>
+          <div>
+            <div class="metric"><strong>Tempo Médio de Serviço:</strong> ${
+              isFinite(service.metrics.avgServiceTime)
+                ? service.metrics.avgServiceTime.toFixed(4)
+                : "N/A"
+            } s</div>
+            <div class="metric"><strong>Tempo Médio de Espera:</strong> ${
+              isFinite(service.metrics.Wq)
+                ? service.metrics.Wq.toFixed(4)
+                : "N/A"
+            } s</div>
+            <div class="metric"><strong>Tempo Médio Ocioso:</strong> ${
+              isFinite(service.metrics.idleTime)
+                ? service.metrics.idleTime.toFixed(4)
+                : "N/A"
+            } s</div>
+          </div>
           
           <p style="margin-top: 40px; text-align: center; color: #666;">
             Gerado em: ${new Date().toLocaleString("pt-BR")}
