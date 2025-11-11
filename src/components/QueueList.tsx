@@ -15,12 +15,14 @@ interface QueueListProps {
   uniqueQueues: string[];
   data: QueueRecord[];
   onSelectQueue: (queueName: string) => void;
+  onDeleteQueue: (queueName: string) => void;
 }
 
 export function QueueList({
   uniqueQueues,
   data,
   onSelectQueue,
+  onDeleteQueue,
 }: QueueListProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
@@ -50,6 +52,16 @@ export function QueueList({
             <p>
               <strong>Atendimentos:</strong> {servicesCount}
             </p>
+            <button
+              onClick={async (e) => {
+                console.log("Delete button clicked for", queueName);
+                e.stopPropagation();
+                await onDeleteQueue(queueName);
+              }}
+              className="mt-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              Excluir
+            </button>
           </div>
         );
       })}

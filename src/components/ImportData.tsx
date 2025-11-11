@@ -4,9 +4,7 @@ interface ImportDataProps {
   handleImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export function ImportData({
-  handleImport,
-}: ImportDataProps) {
+export function ImportData({ handleImport }: ImportDataProps) {
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">

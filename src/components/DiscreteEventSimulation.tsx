@@ -56,11 +56,6 @@ export function DiscreteEventSimulation({
 
   const runDiscreteEventSimulation = () => {
     // Simple discrete event simulation for M/M/1 or M/M/c
-    const events: {
-      time: number;
-      type: "arrival" | "departure";
-      server?: number;
-    }[] = [];
     const servers: { busyUntil: number; serving: boolean }[] = Array.from(
       { length: numServers },
       () => ({ busyUntil: 0, serving: false })
@@ -70,7 +65,6 @@ export function DiscreteEventSimulation({
     let nextArrival = -Math.log(Math.random()) / arrivalRate;
     let nextDeparture = Infinity;
     let totalArrivals = 0;
-    let totalDepartures = 0;
     let totalQueueTime = 0;
     let totalSystemTime = 0;
     let maxQueueLength = 0;
@@ -108,7 +102,6 @@ export function DiscreteEventSimulation({
       } else {
         // Departure
         currentTime = nextDeparture;
-        totalDepartures++;
         let departingServer = -1;
         for (let i = 0; i < numServers; i++) {
           if (servers[i].busyUntil === currentTime) {

@@ -6,8 +6,15 @@ import { Nav } from "../../components/Nav";
 import { AddQueue } from "../../components/AddQueue";
 import { QueueItem } from "../../components/QueueItem";
 import { db } from "../../lib/firebase";
-import { collection, onSnapshot, addDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { toast } from 'react-toastify';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
 
 interface Record {
   id: string;
@@ -29,7 +36,7 @@ export default function Chronometers() {
     "arrival"
   );
   const [numAttendants, setNumAttendants] = useState(1);
-  const [data, setData] = useState<Record[]>([]);
+  const [, setData] = useState<Record[]>([]);
   const [queueTotals, setQueueTotals] = useState<{ [key: string]: number }>({});
 
   const [currentAppTimeMs, setCurrentAppTimeMs] = useState(() => Date.now());
@@ -46,19 +53,34 @@ export default function Chronometers() {
   }, []);
 
   useEffect(() => {
-    const unsubscribeQueues = onSnapshot(collection(db, 'queues'), (snapshot) => {
-      const q = snapshot.docs.map(doc => doc.data() as { name: string; type: "arrival" | "service"; numAttendants?: number });
-      setQueues(q);
-    });
-    const unsubscribeData = onSnapshot(collection(db, 'data'), (snapshot) => {
-      const d = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Record));
+    const unsubscribeQueues = onSnapshot(
+      collection(db, "queues"),
+      (snapshot) => {
+        const q = snapshot.docs.map(
+          (doc) =>
+            doc.data() as {
+              name: string;
+              type: "arrival" | "service";
+              numAttendants?: number;
+            }
+        );
+        setQueues(q);
+      }
+    );
+    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
+      const d = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Record)
+      );
       setData(d);
     });
-    const unsubscribeTotals = onSnapshot(collection(db, 'totals'), (snapshot) => {
-      const t: { [key: string]: number } = {};
-      snapshot.docs.forEach(doc => t[doc.id] = doc.data().total);
-      setQueueTotals(t);
-    });
+    const unsubscribeTotals = onSnapshot(
+      collection(db, "totals"),
+      (snapshot) => {
+        const t: { [key: string]: number } = {};
+        snapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
+        setQueueTotals(t);
+      }
+    );
     return () => {
       unsubscribeQueues();
       unsubscribeData();
@@ -72,17 +94,22 @@ export default function Chronometers() {
       !queues.some((queue) => queue.name === newQueue.trim())
     ) {
       try {
-        await setDoc(doc(db, 'queues', newQueue.trim()), {
+        await setDoc(doc(db, "queues", newQueue.trim()), {
           name: newQueue.trim(),
           type: newQueueType,
-          ...(newQueueType === "service" ? { numAttendants } : {})
+          ...(newQueueType === "service" ? { numAttendants } : {}),
         });
-        await setDoc(doc(db, 'activeServices', newQueue.trim()), {currentServicing: []});
-        await setDoc(doc(db, 'totals', newQueue.trim()), {total: 0});
+        await setDoc(doc(db, "activeServices", newQueue.trim()), {
+          currentServicing: [],
+        });
+        await setDoc(doc(db, "totals", newQueue.trim()), { total: 0 });
         toast.success("Fila adicionada com sucesso!");
         setNewQueue("");
       } catch (error) {
-        toast.error("Erro ao adicionar fila: " + (error instanceof Error ? error.message : String(error)));
+        toast.error(
+          "Erro ao adicionar fila: " +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     } else {
       toast.warn("Nome da fila inválido ou já existe.");
@@ -92,24 +119,27 @@ export default function Chronometers() {
   const removeQueue = async (index: number) => {
     const queueToRemove = queues[index];
     try {
-      await deleteDoc(doc(db, 'queues', queueToRemove.name));
-      await deleteDoc(doc(db, 'activeServices', queueToRemove.name));
-      await deleteDoc(doc(db, 'totals', queueToRemove.name));
+      await deleteDoc(doc(db, "queues", queueToRemove.name));
+      await deleteDoc(doc(db, "activeServices", queueToRemove.name));
+      await deleteDoc(doc(db, "totals", queueToRemove.name));
       toast.success("Fila removida com sucesso!");
     } catch (error) {
-      toast.error("Erro ao remover fila: " + (error instanceof Error ? error.message : String(error)));
+      toast.error(
+        "Erro ao remover fila: " +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   };
 
   const getNextElement = (queue: string) => {
     const current = queueTotals[queue] || 0;
     const next = current + 1;
-    setDoc(doc(db, 'totals', queue), {total: next});
+    setDoc(doc(db, "totals", queue), { total: next });
     return next;
   };
 
   const recordEvent = (record: Omit<Record, "id">) => {
-    addDoc(collection(db, 'data'), record);
+    addDoc(collection(db, "data"), record);
   };
 
   return (

@@ -5,14 +5,17 @@ Este documento descreve a estrutura do banco de dados Firestore usado na aplica�
 ## Coleções
 
 ### `queues`
+
 Armazena as filas definidas pelos usuários.
 
 **Estrutura do Documento:**
+
 - `name` (string): Nome da fila.
 - `type` (string): "arrival" ou "service".
 - `numAttendants` (number, opcional): Número de atendentes (apenas para service).
 
 **Exemplo:**
+
 ```json
 {
   "name": "Fila 1",
@@ -22,9 +25,11 @@ Armazena as filas definidas pelos usuários.
 ```
 
 ### `data`
+
 Armazena os registros de eventos de chegada e serviço.
 
 **Estrutura do Documento:**
+
 - `queue` (string): Nome da fila.
 - `type` (string): "arrival" ou "service".
 - `timestamp` (string): Timestamp ISO da criação.
@@ -34,6 +39,7 @@ Armazena os registros de eventos de chegada e serviço.
 - `exiting` (string): Timestamp ISO de saída (vazio para arrival).
 
 **Exemplo:**
+
 ```json
 {
   "queue": "Fila 1",
@@ -47,12 +53,15 @@ Armazena os registros de eventos de chegada e serviço.
 ```
 
 ### `totals`
+
 Armazena o contador total de elementos por fila.
 
 **Estrutura do Documento (ID = nome da fila):**
+
 - `total` (number): Número total de elementos.
 
 **Exemplo:**
+
 ```json
 {
   "total": 10
@@ -60,12 +69,15 @@ Armazena o contador total de elementos por fila.
 ```
 
 ### `activeServices`
+
 Armazena os serviços ativos em tempo real por fila.
 
 **Estrutura do Documento (ID = nome da fila):**
+
 - `currentServicing` (array): Array de objetos com `element`, `arrivedTime`, `startTime`.
 
 **Exemplo:**
+
 ```json
 {
   "currentServicing": [
@@ -79,15 +91,18 @@ Armazena os serviços ativos em tempo real por fila.
 ```
 
 ### `services`
+
 Armazena as análises salvas de filas.
 
 **Estrutura do Documento:**
+
 - `name` (string): Nome do serviço.
 - `arrivalQueue` (string): Fila de chegada.
 - `serviceQueue` (string): Fila de serviço.
 - `metrics` (object): Métricas calculadas (lambda, mu, rho, etc.).
 
 **Exemplo:**
+
 ```json
 {
   "name": "Análise 1",
@@ -107,9 +122,11 @@ Armazena as análises salvas de filas.
 ```
 
 ## Regras de Segurança
+
 Configure as regras do Firestore para permitir leitura e escrita para usuários autenticados ou público, dependendo da necessidade. Para produção, considere autenticação.
 
 ## Notas
+
 - Todos os dados são compartilhados em tempo real entre usuários.
 - Use listeners `onSnapshot` para atualizações automáticas.
 - Para limpar dados, delete documentos ou coleções conforme necessário.

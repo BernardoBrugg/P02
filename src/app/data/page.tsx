@@ -9,8 +9,16 @@ import { QueueList } from "../../components/QueueList";
 import { DataTable } from "../../components/DataTable";
 import { ExportButton } from "../../components/ExportButton";
 import { db } from "../../lib/firebase";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
-import { toast } from 'react-toastify';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+  setDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
 
 interface QueueRecord {
   id: string;
@@ -35,8 +43,10 @@ interface ImportedRecord {
 
 export default function Data() {
   const [data, setData] = useState<QueueRecord[]>([]);
-  const [queues, setQueues] = useState<{ name: string; type: "arrival" | "service"; numAttendants?: number }[]>([]);
-  const [queueTotals, setQueueTotals] = useState<{ [key: string]: number }>({});
+  const [queues, setQueues] = useState<
+    { name: string; type: "arrival" | "service"; numAttendants?: number }[]
+  >([]);
+  const [, setQueueTotals] = useState<{ [key: string]: number }>({});
 
   const [selectedArrivalQueue, setSelectedArrivalQueue] = useState<
     string | null
@@ -46,19 +56,34 @@ export default function Data() {
   );
 
   useEffect(() => {
-    const unsubscribeData = onSnapshot(collection(db, 'data'), (snapshot) => {
-      const d = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as QueueRecord));
+    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
+      const d = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as QueueRecord)
+      );
       setData(d);
     });
-    const unsubscribeQueues = onSnapshot(collection(db, 'queues'), (snapshot) => {
-      const q = snapshot.docs.map(doc => doc.data() as { name: string; type: "arrival" | "service"; numAttendants?: number });
-      setQueues(q);
-    });
-    const unsubscribeTotals = onSnapshot(collection(db, 'totals'), (snapshot) => {
-      const t: { [key: string]: number } = {};
-      snapshot.docs.forEach(doc => t[doc.id] = doc.data().total);
-      setQueueTotals(t);
-    });
+    const unsubscribeQueues = onSnapshot(
+      collection(db, "queues"),
+      (snapshot) => {
+        const q = snapshot.docs.map(
+          (doc) =>
+            doc.data() as {
+              name: string;
+              type: "arrival" | "service";
+              numAttendants?: number;
+            }
+        );
+        setQueues(q);
+      }
+    );
+    const unsubscribeTotals = onSnapshot(
+      collection(db, "totals"),
+      (snapshot) => {
+        const t: { [key: string]: number } = {};
+        snapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
+        setQueueTotals(t);
+      }
+    );
     return () => {
       unsubscribeData();
       unsubscribeQueues();
@@ -100,7 +125,8 @@ export default function Data() {
               ) {
                 return null;
               }
-              const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
+              const totalTime =
+                parseFloat(tempoTotalStr.replace("s", "")) * 1000;
               if (isNaN(totalTime)) {
                 return null;
               }
@@ -117,11 +143,18 @@ export default function Data() {
             .filter((r) => r !== null);
           if (importedData.length > 0) {
             // Add to Firestore
-            importedData.forEach(record => addDoc(collection(db, 'data'), record));
+            importedData.forEach((record) =>
+              addDoc(collection(db, "data"), record)
+            );
             // Add queue if not exists
-            const queueExists = queues.some(q => q.name === importQueue.trim());
+            const queueExists = queues.some(
+              (q) => q.name === importQueue.trim()
+            );
             if (!queueExists) {
-              setDoc(doc(db, 'queues', importQueue.trim()), {name: importQueue.trim(), type: importedData[0].type});
+              setDoc(doc(db, "queues", importQueue.trim()), {
+                name: importQueue.trim(),
+                type: importedData[0].type,
+              });
             }
             totalImported += importedData.length;
           }
@@ -129,7 +162,9 @@ export default function Data() {
           if (filesProcessed === totalFiles) {
             event.target.value = "";
             if (totalImported > 0) {
-              toast.success(`${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`);
+              toast.success(
+                `${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`
+              );
             } else {
               toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
             }
@@ -141,7 +176,9 @@ export default function Data() {
           if (filesProcessed === totalFiles) {
             event.target.value = "";
             if (totalImported > 0) {
-              toast.success(`${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`);
+              toast.success(
+                `${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`
+              );
             } else {
               toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
             }
@@ -152,7 +189,7 @@ export default function Data() {
   };
 
   const deleteRecord = (record: QueueRecord) => {
-    deleteDoc(doc(db, 'data', record.id));
+    deleteDoc(doc(db, "data", record.id));
     toast.success("Registro excluído com sucesso.");
   };
 
@@ -170,6 +207,37 @@ export default function Data() {
       // To clear Firestore, you would need to delete all docs, but for simplicity, just reset local state
       // Actually, since it's synced, perhaps don't clear Firestore
       toast.success("Dados limpos com sucesso.");
+    }
+  };
+
+  const deleteQueue = async (queueName: string) => {
+    console.log('deleteQueue called for', queueName);
+    if (confirm(`Tem certeza de que deseja excluir a fila "${queueName}" e todos os seus dados?`)) {
+      console.log('Confirmed, proceeding to delete');
+      try {
+        // Delete from queues
+        await deleteDoc(doc(db, "queues", queueName));
+        console.log('Deleted from queues');
+        // Delete from activeServices
+        await deleteDoc(doc(db, "activeServices", queueName));
+        console.log('Deleted from activeServices');
+        // Delete from totals
+        await deleteDoc(doc(db, "totals", queueName));
+        console.log('Deleted from totals');
+        // Delete all data for this queue
+        const dataToDelete = data.filter(d => d.queue === queueName);
+        console.log('Data to delete:', dataToDelete.length, 'records');
+        const batch = writeBatch(db);
+        dataToDelete.forEach(record => batch.delete(doc(db, "data", record.id)));
+        await batch.commit();
+        console.log('Data records deleted');
+        toast.success(`Fila "${queueName}" e seus dados excluídos com sucesso.`);
+      } catch (error) {
+        console.log('Error deleting queue:', error);
+        toast.error("Erro ao excluir fila: " + (error as Error).message);
+      }
+    } else {
+      console.log('Deletion cancelled by user');
     }
   };
 
@@ -232,9 +300,7 @@ export default function Data() {
         <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-fade-in">
           Dados
         </h1>
-        <ImportData
-          handleImport={handleImport}
-        />
+        <ImportData handleImport={handleImport} />
         <ClearData dataLength={data.length} clearAllData={clearAllData} />
         {data.length === 0 ? (
           <p className="text-center text-[var(--text-secondary)] animate-fade-in">
@@ -272,6 +338,7 @@ export default function Data() {
             uniqueQueues={uniqueQueues}
             data={data}
             onSelectQueue={onSelectQueue}
+            onDeleteQueue={deleteQueue}
           />
         )}
       </div>

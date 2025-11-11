@@ -13,7 +13,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 
 interface QueueMetrics {
   lambda: number;

@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore";
 
 interface Record {
   queue: string;
@@ -30,7 +36,6 @@ export function Chronometer({
   getNextElement,
   currentTotal,
   onRecord,
-  currentAppTimeMs,
   numAttendants,
 }: ChronometerProps) {
   const pendingClients: { element: number; arriving: number }[] = [];
@@ -55,13 +60,16 @@ export function Chronometer({
   }, [startTime, currentServicing, type]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'activeServices', queue), (docSnap) => {
-      if (docSnap.exists()) {
-        setCurrentServicing(docSnap.data().currentServicing || []);
-      } else {
-        setCurrentServicing([]);
+    const unsubscribe = onSnapshot(
+      doc(db, "activeServices", queue),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setCurrentServicing(docSnap.data().currentServicing || []);
+        } else {
+          setCurrentServicing([]);
+        }
       }
-    });
+    );
     return unsubscribe;
   }, [queue]);
 
@@ -102,8 +110,12 @@ export function Chronometer({
     const now = Date.now();
     const element = getNextElement(queue);
     const startTimeStr = new Date(now).toISOString();
-    updateDoc(doc(db, 'activeServices', queue), {
-      currentServicing: arrayUnion({ element, arrivedTime: now, startTime: startTimeStr })
+    updateDoc(doc(db, "activeServices", queue), {
+      currentServicing: arrayUnion({
+        element,
+        arrivedTime: now,
+        startTime: startTimeStr,
+      }),
     });
   };
 
@@ -121,8 +133,8 @@ export function Chronometer({
         exiting: new Date(now).toISOString(),
       };
       onRecord(record);
-      updateDoc(doc(db, 'activeServices', queue), {
-        currentServicing: arrayRemove(currentServicing[0])
+      updateDoc(doc(db, "activeServices", queue), {
+        currentServicing: arrayRemove(currentServicing[0]),
       });
     }
   };
