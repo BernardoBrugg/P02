@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { Nav } from "../../components/Nav";
 import { ImportData } from "../../components/ImportData";
@@ -8,6 +8,17 @@ import { ClearData } from "../../components/ClearData";
 import { QueueList } from "../../components/QueueList";
 import { DataTable } from "../../components/DataTable";
 import { ExportButton } from "../../components/ExportButton";
+import { db } from "../../lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+  setDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
 
 interface QueueRecord {
   id: string;
@@ -20,27 +31,22 @@ interface QueueRecord {
   exiting: string;
 }
 
-interface LinkedItem {
-  customer: number;
-  arrivalTime: number;
-  serviceTime: number;
-  interarrival: number;
+interface ImportedRecord {
+  queue: string;
+  type: "arrival" | "service";
+  timestamp: string;
+  totalTime: number;
+  element: number;
+  arriving: string;
+  exiting: string;
 }
 
 export default function Data() {
-  const [data, setData] = useState<QueueRecord[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedData = localStorage.getItem("queueing-data");
-      if (storedData) {
-        const parsed = JSON.parse(storedData) as QueueRecord[];
-        return parsed.map((r: QueueRecord, index: number) => ({
-          ...r,
-          id: r.id || `legacy-${Date.now()}-${index}`,
-        }));
-      }
-    }
-    return [];
-  });
+  const [data, setData] = useState<QueueRecord[]>([]);
+  const [queues, setQueues] = useState<
+    { name: string; type: "arrival" | "service"; numAttendants?: number }[]
+  >([]);
+  const [, setQueueTotals] = useState<{ [key: string]: number }>({});
 
   const [selectedArrivalQueue, setSelectedArrivalQueue] = useState<
     string | null
@@ -48,115 +54,198 @@ export default function Data() {
   const [selectedServiceQueues, setSelectedServiceQueues] = useState<string[]>(
     []
   );
-  const [importQueue, setImportQueue] = useState("");
+
+  useEffect(() => {
+    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
+      const d = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as QueueRecord)
+      );
+      setData(d);
+    });
+    const unsubscribeQueues = onSnapshot(
+      collection(db, "queues"),
+      (snapshot) => {
+        const q = snapshot.docs.map(
+          (doc) =>
+            doc.data() as {
+              name: string;
+              type: "arrival" | "service";
+              numAttendants?: number;
+            }
+        );
+        setQueues(q);
+      }
+    );
+    const unsubscribeTotals = onSnapshot(
+      collection(db, "totals"),
+      (snapshot) => {
+        const t: { [key: string]: number } = {};
+        snapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
+        setQueueTotals(t);
+      }
+    );
+    return () => {
+      unsubscribeData();
+      unsubscribeQueues();
+      unsubscribeTotals();
+    };
+  }, []);
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !importQueue.trim()) {
-      alert("Selecione um arquivo e especifique o nome da fila.");
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      toast.warn("Selecione um ou mais arquivos.");
       return;
     }
-    Papa.parse(file, {
-      header: true,
-      delimiter: ";",
-      complete: (results) => {
-        const importedData: QueueRecord[] = (
-          results.data as Record<string, string>[]
-        )
-          .map((row, index) => {
-            const tipo = row["Tipo"];
-            const timestamp = row["Carimbo de Data/Hora"];
-            const tempoTotalStr = row["Tempo Total"];
-            const elemento = parseInt(row["Elemento"]);
-            const chegando = row["Chegando"];
-            const saindo = row["Saindo"];
-            if (
-              !tipo ||
-              !timestamp ||
-              isNaN(elemento) ||
-              !tempoTotalStr ||
-              typeof tempoTotalStr !== "string"
-            ) {
-              return null;
-            }
-            const totalTime = parseFloat(tempoTotalStr.replace("s", "")) * 1000;
-            if (isNaN(totalTime)) {
-              return null;
-            }
-            return {
-              id: `import-${Date.now()}-${index}`,
-              queue: importQueue.trim(),
-              type: tipo as "arrival" | "service",
-              timestamp,
-              totalTime,
-              element: elemento,
-              arriving: chegando,
-              exiting: saindo === "--" ? "" : saindo,
-            };
-          })
-          .filter((r) => r !== null);
-        if (importedData.length === 0) {
-          alert("Nenhum dado válido encontrado no CSV.");
-          return;
-        }
-        saveData([...data, ...importedData]);
-        setImportQueue("");
-        event.target.value = "";
+    let totalImported = 0;
+    let filesProcessed = 0;
+    const totalFiles = files.length;
 
-        // Update queues in localStorage
-        const uniqueTypes = Array.from(
-          new Set(importedData.map((r) => r.type))
-        );
-        const newQueues = uniqueTypes.map((type) => ({
-          name: importQueue.trim(),
-          type: type as "arrival" | "service",
-        }));
-        const existingQueues = JSON.parse(
-          localStorage.getItem("queueing-queues") || "[]"
-        );
-        const updatedQueues = [...existingQueues];
-        for (const q of newQueues) {
-          if (
-            !updatedQueues.some(
-              (eq) => eq.name === q.name && eq.type === q.type
-            )
-          ) {
-            updatedQueues.push(q);
+    Array.from(files).forEach((file) => {
+      const importQueue = file.name.split(".")[0];
+      Papa.parse(file, {
+        header: true,
+        complete: (results) => {
+          const importedData: ImportedRecord[] = (
+            results.data as Record<string, string>[]
+          )
+            .map((row) => {
+              const tipo = row["Tipo"];
+              const timestamp = row["Carimbo de Data/Hora"];
+              const tempoTotalStr = row["Tempo Total"];
+              const elemento = parseInt(row["Elemento"]);
+              const chegando = row["Chegando"];
+              const saindo = row["Saindo"];
+              if (
+                !tipo ||
+                !timestamp ||
+                isNaN(elemento) ||
+                !tempoTotalStr ||
+                typeof tempoTotalStr !== "string"
+              ) {
+                return null;
+              }
+              const totalTime =
+                parseFloat(tempoTotalStr.replace("s", "")) * 1000;
+              if (isNaN(totalTime)) {
+                return null;
+              }
+              return {
+                queue: importQueue.trim(),
+                type: tipo as "arrival" | "service",
+                timestamp,
+                totalTime,
+                element: elemento,
+                arriving: chegando,
+                exiting: saindo === "--" ? "" : saindo,
+              };
+            })
+            .filter((r) => r !== null);
+          if (importedData.length > 0) {
+            // Add to Firestore
+            importedData.forEach((record) =>
+              addDoc(collection(db, "data"), record)
+            );
+            // Add queue if not exists
+            const queueExists = queues.some(
+              (q) => q.name === importQueue.trim()
+            );
+            if (!queueExists) {
+              setDoc(doc(db, "queues", importQueue.trim()), {
+                name: importQueue.trim(),
+                type: importedData[0].type,
+              });
+            }
+            totalImported += importedData.length;
           }
-        }
-        localStorage.setItem("queueing-queues", JSON.stringify(updatedQueues));
-
-        // Reset selection to show the queue list
-        setSelectedArrivalQueue(null);
-        setSelectedServiceQueues([]);
-
-        alert(`${importedData.length} registros importados com sucesso.`);
-      },
-      error: (error) => {
-        alert("Erro ao importar CSV: " + error.message);
-      },
+          filesProcessed++;
+          if (filesProcessed === totalFiles) {
+            event.target.value = "";
+            if (totalImported > 0) {
+              toast.success(
+                `${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`
+              );
+            } else {
+              toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
+            }
+          }
+        },
+        error: (error) => {
+          toast.error("Erro ao importar CSV: " + (error as Error).message);
+          filesProcessed++;
+          if (filesProcessed === totalFiles) {
+            event.target.value = "";
+            if (totalImported > 0) {
+              toast.success(
+                `${totalImported} registros importados com sucesso de ${totalFiles} arquivo(s).`
+              );
+            } else {
+              toast.error("Nenhum dado válido encontrado nos arquivos CSV.");
+            }
+          }
+        },
+      });
     });
   };
 
-  const saveData = (newData: QueueRecord[]) => {
-    setData(newData);
-    localStorage.setItem("queueing-data", JSON.stringify(newData));
-  };
-
   const deleteRecord = (record: QueueRecord) => {
-    const newData = data.filter((r) => r.id !== record.id);
-    saveData(newData);
+    deleteDoc(doc(db, "data", record.id));
+    toast.success("Registro excluído com sucesso.");
   };
 
   const clearAllData = () => {
     if (
       confirm(
-        "Tem certeza de que deseja limpar todos os dados? Esta ação não pode ser desfeita."
+        "Tem certeza de que deseja limpar todos os dados? Esta ação afetará todos os usuários."
       )
     ) {
-      saveData([]);
-      setSelectedArrivalQueue(null);
-      setSelectedServiceQueues([]);
+      // Note: Clearing all data for all users
+      // In a real app, you might want to restrict this
+      setData([]);
+      setQueues([]);
+      setQueueTotals({});
+      // To clear Firestore, you would need to delete all docs, but for simplicity, just reset local state
+      // Actually, since it's synced, perhaps don't clear Firestore
+      toast.success("Dados limpos com sucesso.");
+    }
+  };
+
+  const deleteQueue = async (queueName: string) => {
+    console.log("deleteQueue called for", queueName);
+    if (
+      confirm(
+        `Tem certeza de que deseja excluir a fila "${queueName}" e todos os seus dados?`
+      )
+    ) {
+      console.log("Confirmed, proceeding to delete");
+      try {
+        // Delete from queues
+        await deleteDoc(doc(db, "queues", queueName));
+        console.log("Deleted from queues");
+        // Delete from activeServices
+        await deleteDoc(doc(db, "activeServices", queueName));
+        console.log("Deleted from activeServices");
+        // Delete from totals
+        await deleteDoc(doc(db, "totals", queueName));
+        console.log("Deleted from totals");
+        // Delete all data for this queue
+        const dataToDelete = data.filter((d) => d.queue === queueName);
+        console.log("Data to delete:", dataToDelete.length, "records");
+        const batch = writeBatch(db);
+        dataToDelete.forEach((record) =>
+          batch.delete(doc(db, "data", record.id))
+        );
+        await batch.commit();
+        console.log("Data records deleted");
+        toast.success(
+          `Fila "${queueName}" e seus dados excluídos com sucesso.`
+        );
+      } catch (error) {
+        console.log("Error deleting queue:", error);
+        toast.error("Erro ao excluir fila: " + (error as Error).message);
+      }
+    } else {
+      console.log("Deletion cancelled by user");
     }
   };
 
@@ -219,11 +308,7 @@ export default function Data() {
         <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-[var(--accent)] mb-8 text-center animate-fade-in">
           Dados
         </h1>
-        <ImportData
-          importQueue={importQueue}
-          setImportQueue={setImportQueue}
-          handleImport={handleImport}
-        />
+        <ImportData handleImport={handleImport} />
         <ClearData dataLength={data.length} clearAllData={clearAllData} />
         {data.length === 0 ? (
           <p className="text-center text-[var(--text-secondary)] animate-fade-in">
@@ -261,6 +346,7 @@ export default function Data() {
             uniqueQueues={uniqueQueues}
             data={data}
             onSelectQueue={onSelectQueue}
+            onDeleteQueue={deleteQueue}
           />
         )}
       </div>

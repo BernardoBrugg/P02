@@ -10,7 +10,6 @@ interface QueueItemProps {
   currentTotal: number;
   onRecord: (record: Omit<Record, "id">) => void;
   currentAppTimeMs: number;
-  timeMode: "default" | "custom";
 }
 
 interface Record {
@@ -32,7 +31,6 @@ export function QueueItem({
   currentTotal,
   onRecord,
   currentAppTimeMs,
-  timeMode,
 }: QueueItemProps) {
   return (
     <div
@@ -66,7 +64,6 @@ export function QueueItem({
         currentTotal={currentTotal}
         onRecord={onRecord}
         currentAppTimeMs={currentAppTimeMs}
-        timeMode={timeMode}
         numAttendants={queue.numAttendants || 1}
       />
     </div>

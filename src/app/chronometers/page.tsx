@@ -3,9 +3,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { TimestampCard } from "../../components/TimestampCard";
 import { Nav } from "../../components/Nav";
-import { TimeConfig } from "../../components/TimeConfig";
 import { AddQueue } from "../../components/AddQueue";
 import { QueueItem } from "../../components/QueueItem";
+import { db } from "../../lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
 
 interface Record {
   id: string;
@@ -21,153 +30,116 @@ interface Record {
 export default function Chronometers() {
   const [queues, setQueues] = useState<
     { name: string; type: "arrival" | "service"; numAttendants?: number }[]
-  >(() => {
-    if (typeof window !== "undefined") {
-      const storedQueues = localStorage.getItem("queueing-queues");
-      return storedQueues ? JSON.parse(storedQueues) : [];
-    }
-    return [];
-  });
+  >([]);
   const [newQueue, setNewQueue] = useState("");
   const [newQueueType, setNewQueueType] = useState<"arrival" | "service">(
     "arrival"
   );
   const [numAttendants, setNumAttendants] = useState(1);
-  const [data, setData] = useState<Record[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedData = localStorage.getItem("queueing-data");
-      if (storedData) {
-        const parsed = JSON.parse(storedData);
-        return parsed.map((r: Partial<Record>, index: number) => ({
-          id: r.id || `legacy-${Date.now()}-${index}`,
-          ...r,
-        }));
-      }
-    }
-    return [];
-  });
-  const [queueTotals, setQueueTotals] = useState<{ [key: string]: number }>(
-    () => {
-      if (typeof window !== "undefined") {
-        const storedTotals = localStorage.getItem("queueing-totals");
-        return storedTotals ? JSON.parse(storedTotals) : {};
-      }
-      return {};
-    }
-  );
+  const [, setData] = useState<Record[]>([]);
+  const [queueTotals, setQueueTotals] = useState<{ [key: string]: number }>({});
 
   const [currentAppTimeMs, setCurrentAppTimeMs] = useState(() => Date.now());
   const currentAppTime = useMemo(
     () => new Date(currentAppTimeMs),
     [currentAppTimeMs]
   );
-  const [milliseconds, setMilliseconds] = useState(0);
-
-  const [timeMode, setTimeMode] = useState<"default" | "custom">("default");
-  const [customStartTime, setCustomStartTime] = useState<Date | null>(null);
-
-  const setCurrentAppTime = (date: Date) => setCurrentAppTimeMs(date.getTime());
-
-  const updateMilliseconds = (ms: number) => {
-    setMilliseconds(ms);
-  };
-
-  const handleSetTimeMode = (mode: "default" | "custom") => {
-    setTimeMode(mode);
-    if (mode === "custom" && !customStartTime) {
-      const now = new Date();
-      setCustomStartTime(now);
-      setCurrentAppTimeMs(now.getTime());
-    }
-  };
 
   useEffect(() => {
-    if (timeMode === "default") {
-      const interval = setInterval(() => {
-        setCurrentAppTimeMs(Date.now());
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [timeMode]);
+    const interval = setInterval(() => {
+      setCurrentAppTimeMs(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
-    if (timeMode === "custom" && milliseconds > 0 && customStartTime) {
-      const interval = setInterval(() => {
-        setCurrentAppTimeMs((prev) => prev + milliseconds);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [timeMode, milliseconds, customStartTime]);
+    const unsubscribeQueues = onSnapshot(
+      collection(db, "queues"),
+      (snapshot) => {
+        const q = snapshot.docs.map(
+          (doc) =>
+            doc.data() as {
+              name: string;
+              type: "arrival" | "service";
+              numAttendants?: number;
+            }
+        );
+        setQueues(q);
+      }
+    );
+    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
+      const d = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Record)
+      );
+      setData(d);
+    });
+    const unsubscribeTotals = onSnapshot(
+      collection(db, "totals"),
+      (snapshot) => {
+        const t: { [key: string]: number } = {};
+        snapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
+        setQueueTotals(t);
+      }
+    );
+    return () => {
+      unsubscribeQueues();
+      unsubscribeData();
+      unsubscribeTotals();
+    };
+  }, []);
 
-  const saveQueues = (
-    newQueues: {
-      name: string;
-      type: "arrival" | "service";
-      numAttendants?: number;
-    }[]
-  ) => {
-    setQueues(newQueues);
-    localStorage.setItem("queueing-queues", JSON.stringify(newQueues));
-  };
-
-  const saveData = (newData: Record[]) => {
-    setData(newData);
-    localStorage.setItem("queueing-data", JSON.stringify(newData));
-  };
-
-  const saveTotals = (newTotals: { [key: string]: number }) => {
-    setQueueTotals(newTotals);
-    localStorage.setItem("queueing-totals", JSON.stringify(newTotals));
-  };
-
-  const addQueue = () => {
+  const addQueue = async () => {
     if (
       newQueue.trim() &&
       !queues.some((queue) => queue.name === newQueue.trim())
     ) {
-      const newQueues = [
-        ...queues,
-        {
+      try {
+        await setDoc(doc(db, "queues", newQueue.trim()), {
           name: newQueue.trim(),
           type: newQueueType,
           ...(newQueueType === "service" ? { numAttendants } : {}),
-        },
-      ];
-      saveQueues(newQueues);
-      setNewQueue("");
+        });
+        await setDoc(doc(db, "activeServices", newQueue.trim()), {
+          currentServicing: [],
+        });
+        await setDoc(doc(db, "totals", newQueue.trim()), { total: 0 });
+        toast.success("Fila adicionada com sucesso!");
+        setNewQueue("");
+      } catch (error) {
+        toast.error(
+          "Erro ao adicionar fila: " +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    } else {
+      toast.warn("Nome da fila inválido ou já existe.");
     }
   };
 
-  const removeQueue = (index: number) => {
+  const removeQueue = async (index: number) => {
     const queueToRemove = queues[index];
-    const newQueues = queues.filter((_, i) => i !== index);
-    saveQueues(newQueues);
-
-    const newData = data.filter(
-      (record) => record.queue !== queueToRemove.name
-    );
-    saveData(newData);
-
-    // Remove total for this queue
-    const newTotals = { ...queueTotals };
-    delete newTotals[queueToRemove.name];
-    saveTotals(newTotals);
+    try {
+      await deleteDoc(doc(db, "queues", queueToRemove.name));
+      await deleteDoc(doc(db, "activeServices", queueToRemove.name));
+      await deleteDoc(doc(db, "totals", queueToRemove.name));
+      toast.success("Fila removida com sucesso!");
+    } catch (error) {
+      toast.error(
+        "Erro ao remover fila: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
   };
 
   const getNextElement = (queue: string) => {
     const current = queueTotals[queue] || 0;
     const next = current + 1;
-    const newTotals = { ...queueTotals, [queue]: next };
-    saveTotals(newTotals);
+    setDoc(doc(db, "totals", queue), { total: next });
     return next;
   };
 
   const recordEvent = (record: Omit<Record, "id">) => {
-    const newRecord = {
-      ...record,
-      id: `record-${Date.now()}-${Math.random()}`,
-    };
-    saveData([...data, newRecord]);
+    addDoc(collection(db, "data"), record);
   };
 
   return (
@@ -188,15 +160,6 @@ export default function Chronometers() {
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
               Configuração de Tempo
             </h2>
-            <TimeConfig
-              timeMode={timeMode}
-              setTimeMode={handleSetTimeMode}
-              customStartTime={customStartTime}
-              setCustomStartTime={setCustomStartTime}
-              milliseconds={milliseconds}
-              updateMilliseconds={updateMilliseconds}
-              setCurrentAppTime={setCurrentAppTime}
-            />
           </div>
           <div
             className="mb-8 animate-fade-in"
@@ -223,7 +186,6 @@ export default function Chronometers() {
                 currentTotal={queueTotals[queue.name] || 0}
                 onRecord={recordEvent}
                 currentAppTimeMs={currentAppTimeMs}
-                timeMode={timeMode}
               />
             ))}
           </div>

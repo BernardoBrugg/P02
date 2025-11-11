@@ -28,6 +28,7 @@ export function CustomSimulation({ onAddService }: CustomSimulationProps) {
   const [customMu, setCustomMu] = useState(1);
   const [customNumServers, setCustomNumServers] = useState(1);
   const [customMetrics, setCustomMetrics] = useState<QueueMetrics | null>(null);
+  const [customMaxN, setCustomMaxN] = useState(10);
 
   const calculateCustomMetrics = () => {
     const lambda = customLambda;
@@ -38,7 +39,7 @@ export function CustomSimulation({ onAddService }: CustomSimulationProps) {
       alert("Sistema instável (ρ >= 1).");
       return;
     }
-    const N = 1000; // Large number for summation approximation
+    const N = customMaxN;
     const C = new Array(N + 1).fill(0);
     C[0] = 1;
     for (let n = 1; n <= N; n++) {
@@ -73,7 +74,7 @@ export function CustomSimulation({ onAddService }: CustomSimulationProps) {
         Simulação Personalizada
       </h2>
       <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-[var(--text-primary)] mb-2">
               <MathRenderer math="\lambda" /> (taxa de chegada)
@@ -107,6 +108,18 @@ export function CustomSimulation({ onAddService }: CustomSimulationProps) {
               min="1"
               value={customNumServers}
               onChange={(e) => setCustomNumServers(parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--element-border)] rounded-lg text-[var(--text-primary)]"
+            />
+          </div>
+          <div>
+            <label className="block text-[var(--text-primary)] mb-2">
+              Máximo n para P(n)
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={customMaxN}
+              onChange={(e) => setCustomMaxN(parseInt(e.target.value))}
               className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--element-border)] rounded-lg text-[var(--text-primary)]"
             />
           </div>

@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { db } from "../lib/firebase";
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore";
 
 interface Record {
   queue: string;
@@ -19,7 +27,6 @@ interface ChronometerProps {
   currentTotal: number;
   onRecord: (record: Omit<Record, "id">) => void;
   currentAppTimeMs: number;
-  timeMode: "default" | "custom";
   numAttendants: number;
 }
 
@@ -29,8 +36,6 @@ export function Chronometer({
   getNextElement,
   currentTotal,
   onRecord,
-  currentAppTimeMs,
-  timeMode,
   numAttendants,
 }: ChronometerProps) {
   const pendingClients: { element: number; arriving: number }[] = [];
@@ -39,23 +44,34 @@ export function Chronometer({
   >([]);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [displayTime, setDisplayTime] = useState(0);
-  const currentWait = 0;
 
   useEffect(() => {
-    if (timeMode === "default") {
-      const interval = setInterval(() => {
-        const current = Date.now();
-        if (type === "arrival" && startTime) {
-          setDisplayTime(current - startTime);
-        } else if (type === "service" && currentServicing.length > 0) {
-          setDisplayTime(current - currentServicing[0].arrivedTime);
+    const interval = setInterval(() => {
+      const current = Date.now();
+      if (type === "arrival" && startTime) {
+        setDisplayTime(current - startTime);
+      } else if (type === "service" && currentServicing.length > 0) {
+        setDisplayTime(current - currentServicing[0].arrivedTime);
+      } else {
+        setDisplayTime(0);
+      }
+    }, 10);
+    return () => clearInterval(interval);
+  }, [startTime, currentServicing, type]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(db, "activeServices", queue),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setCurrentServicing(docSnap.data().currentServicing || []);
         } else {
-          setDisplayTime(0);
+          setCurrentServicing([]);
         }
-      }, 10);
-      return () => clearInterval(interval);
-    }
-  }, [timeMode, startTime, currentServicing, type]);
+      }
+    );
+    return unsubscribe;
+  }, [queue]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -90,29 +106,36 @@ export function Chronometer({
     onRecord(record);
   };
 
-  const arrivedAtService = (now: number) => {
+  const arrivedAtService = () => {
+    const now = Date.now();
     const element = getNextElement(queue);
     const startTimeStr = new Date(now).toISOString();
-    setCurrentServicing((prev) => [
-      ...prev,
-      { element, arrivedTime: now, startTime: startTimeStr },
-    ]);
+    updateDoc(doc(db, "activeServices", queue), {
+      currentServicing: arrayUnion({
+        element,
+        arrivedTime: now,
+        startTime: startTimeStr,
+      }),
+    });
   };
 
-  const completedService = (index: number, now: number) => {
+  const completedService = () => {
     if (currentServicing.length > 0) {
-      const totalTime = now - currentServicing[index].arrivedTime;
+      const now = Date.now();
+      const totalTime = now - currentServicing[0].arrivedTime;
       const record: Record = {
         queue,
         type,
-        timestamp: currentServicing[index].startTime,
+        timestamp: currentServicing[0].startTime,
         totalTime,
-        element: currentServicing[index].element,
-        arriving: currentServicing[index].startTime,
+        element: currentServicing[0].element,
+        arriving: currentServicing[0].startTime,
         exiting: new Date(now).toISOString(),
       };
       onRecord(record);
-      setCurrentServicing((prev) => prev.filter((_, i) => i !== index));
+      updateDoc(doc(db, "activeServices", queue), {
+        currentServicing: arrayRemove(currentServicing[0]),
+      });
     }
   };
 
@@ -161,7 +184,7 @@ export function Chronometer({
         {type === "arrival" ? (
           <>
             <button
-              onClick={() => addArrival(timeMode === "default" ? Date.now() : currentAppTimeMs)}
+              onClick={() => addArrival(Date.now())}
               className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg"
             >
               +1
@@ -170,14 +193,14 @@ export function Chronometer({
         ) : (
           <>
             <button
-              onClick={() => arrivedAtService(timeMode === "default" ? Date.now() : currentAppTimeMs)}
+              onClick={() => arrivedAtService()}
               disabled={currentServicing.length >= numAttendants}
               className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Chegou no atendimento
             </button>
             <button
-              onClick={() => completedService(0, timeMode === "default" ? Date.now() : currentAppTimeMs)}
+              onClick={() => completedService()}
               disabled={currentServicing.length === 0}
               className="flex-1 px-6 py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >

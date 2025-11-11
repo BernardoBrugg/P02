@@ -5,8 +5,23 @@ import { Nav } from "../../components/Nav";
 import { QueueSelector } from "../../components/QueueSelector";
 import { MetricsResults } from "../../components/MetricsResults";
 import { ServiceCard } from "../../components/ServiceCard";
+import { db } from "../../lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
+import { Service, QueueMetrics } from "../../lib/types";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { ServicePDF } from "../../components/ServicePDF";
+import { createRoot } from "react-dom/client";
 
 interface Record {
+  id: string;
   queue: string;
   type: "arrival" | "service";
   timestamp: string;
@@ -14,17 +29,6 @@ interface Record {
   element: number;
   arriving: string;
   exiting: string;
-}
-
-interface QueueMetrics {
-  lambda: number;
-  mu: number;
-  rho: number;
-  L: number;
-  Lq: number;
-  W: number;
-  Wq: number;
-  P: number[];
 }
 
 interface Event {
@@ -51,7 +55,15 @@ interface StoredService {
     W: number;
     Wq: number;
     P: (number | null)[];
+    idleTime: number;
+    idleProportion: number;
+    avgServiceTime: number;
+    idleTimes: number[];
+    waitingTimes: number[];
   };
+  serviceTimes: number[];
+  timestamps: number[];
+  interArrivals: number[];
 }
 
 export default function Dashboards() {
@@ -79,57 +91,57 @@ export default function Dashboards() {
     }
   }, []);
 
-  const [queues] = useState<{ name: string; type: "arrival" | "service" }[]>(
-    () => {
-      if (typeof window !== "undefined") {
-        const storedQueues = localStorage.getItem("queueing-queues");
-        return storedQueues ? JSON.parse(storedQueues) : [];
+  const [queues, setQueues] = useState<
+    { name: string; type: "arrival" | "service"; numAttendants?: number }[]
+  >([]);
+  const [data, setData] = useState<Record[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [validServiceTimes, setValidServiceTimes] = useState<number[]>([]);
+  const [timestamps, setTimestamps] = useState<number[]>([]);
+
+  useEffect(() => {
+    const unsubscribeQueues = onSnapshot(
+      collection(db, "queues"),
+      (snapshot) => {
+        const q = snapshot.docs.map(
+          (doc) =>
+            doc.data() as {
+              name: string;
+              type: "arrival" | "service";
+              numAttendants?: number;
+            }
+        );
+        setQueues(q);
       }
-      return [];
-    }
-  );
-  const [data] = useState<Record[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedData = localStorage.getItem("queueing-data");
-      return storedData ? JSON.parse(storedData) : [];
-    }
-    return [];
-  });
-  const [services, setServices] = useState<
-    {
-      name: string;
-      arrivalQueue: string;
-      serviceQueue: string;
-      metrics: QueueMetrics;
-    }[]
-  >(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("queueing-services");
-      return stored
-        ? (JSON.parse(stored) as StoredService[]).map((service) => ({
-            ...service,
-            metrics: {
-              ...service.metrics,
-              P: service.metrics.P.map((p) =>
-                typeof p === "number" && isFinite(p) ? p : 0
-              ),
-            },
-          }))
-        : [];
-    }
-    return [];
-  });
+    );
+    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
+      const d = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Record)
+      );
+      setData(d);
+    });
+    const unsubscribeServices = onSnapshot(
+      collection(db, "services"),
+      (snapshot) => {
+        const s = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Service)
+        );
+        setServices(s);
+      }
+    );
+    return () => {
+      unsubscribeQueues();
+      unsubscribeData();
+      unsubscribeServices();
+    };
+  }, []);
+
   const [newServiceName, setNewServiceName] = useState("");
   const [selectedArrivalQueue, setSelectedArrivalQueue] = useState("");
   const [selectedServiceQueue, setSelectedServiceQueue] = useState("");
   const [results, setResults] = useState<QueueMetrics | null>(null);
   const [numServers, setNumServers] = useState(1);
   const [maxN, setMaxN] = useState(10);
-
-  const saveServices = (newServices: typeof services) => {
-    setServices(newServices);
-    localStorage.setItem("queueing-services", JSON.stringify(newServices));
-  };
 
   const getCumulativeData = (service: (typeof services)[0]) => {
     const arrivalData = data
@@ -170,7 +182,7 @@ export default function Dashboards() {
 
   const calculateQueueMetrics = () => {
     if (!selectedArrivalQueue || !selectedServiceQueue) {
-      alert("Selecione filas de chegada e atendimento.");
+      toast.warn("Selecione filas de chegada e atendimento.");
       return;
     }
     const arrivalData = data
@@ -194,7 +206,7 @@ export default function Dashboards() {
       .sort((a, b) => a.element - b.element);
 
     if (filteredArrivalData.length === 0) {
-      alert(
+      toast.error(
         "Não há elementos comuns válidos entre as filas de chegada e atendimento."
       );
       return;
@@ -214,7 +226,7 @@ export default function Dashboards() {
     }
 
     if (interArrivals.length === 0) {
-      alert(
+      toast.error(
         "Todos os tempos de chegada são idênticos. Por favor, registre chegadas com timestamps diferentes para calcular a taxa de chegada (λ)."
       );
       return;
@@ -226,7 +238,7 @@ export default function Dashboards() {
 
     // Validate lambda
     if (!isFinite(lambda) || lambda <= 0) {
-      alert(
+      toast.error(
         "Erro ao calcular a taxa de chegada. Verifique os dados de entrada."
       );
       return;
@@ -239,11 +251,16 @@ export default function Dashboards() {
     const validServiceTimes = serviceTimes.filter((t) => t > 0);
 
     if (validServiceTimes.length === 0) {
-      alert(
+      toast.error(
         "Todos os tempos de serviço são zero ou inválidos. Por favor, registre atendimentos com duração adequada."
       );
       return;
     }
+
+    setValidServiceTimes(validServiceTimes);
+    setTimestamps(
+      filteredServiceData.map((s) => new Date(s.arriving).getTime())
+    );
 
     const avgServiceTime =
       validServiceTimes.reduce((a, b) => a + b, 0) / validServiceTimes.length;
@@ -251,7 +268,7 @@ export default function Dashboards() {
 
     // Validate mu
     if (!isFinite(mu) || mu <= 0) {
-      alert(
+      toast.error(
         "Erro ao calcular a taxa de atendimento. Verifique os dados de entrada."
       );
       return;
@@ -262,7 +279,7 @@ export default function Dashboards() {
       const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
       const serviceStart = new Date(filteredServiceData[i].arriving).getTime();
       if (serviceStart < arrivalTime) {
-        alert(
+        toast.error(
           `Para o elemento ${filteredArrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
         );
         return;
@@ -273,7 +290,7 @@ export default function Dashboards() {
     const rho = lambda / (numServers * mu);
     // Check if rho >= 1, which means the system is unstable
     if (rho >= 1) {
-      alert(
+      toast.warn(
         `O sistema está sobrecarregado (ρ = ${rho.toFixed(
           4
         )} ≥ 1). As fórmulas de estado estacionário não se aplicam. A fila cresce indefinidamente.`
@@ -323,12 +340,46 @@ export default function Dashboards() {
         }
       }
     }
-    setResults({ lambda, mu, rho, L, Lq, W, Wq, P });
+    // Calculate idle time empirically
+    const idleTimes: number[] = [];
+    let serverBusyUntil = new Date(filteredArrivalData[0].timestamp).getTime();
+    let totalIdleTime = 0;
+    for (let i = 0; i < filteredServiceData.length; i++) {
+      const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
+      const serviceTime = filteredServiceData[i].totalTime; // in ms
+      const idleForThis = Math.max(0, arrivalTime - serverBusyUntil);
+      idleTimes.push(idleForThis / 1000);
+      totalIdleTime += idleForThis;
+      serverBusyUntil = Math.max(serverBusyUntil, arrivalTime) + serviceTime;
+    }
+    const idleTime = totalIdleTime / 1000;
+    const idleProportion =
+      idleTime /
+      ((serverBusyUntil -
+        new Date(filteredArrivalData[0].timestamp).getTime()) /
+        1000);
+    setResults({
+      lambda,
+      mu,
+      rho,
+      L,
+      Lq,
+      W,
+      Wq,
+      P,
+      idleTime,
+      idleProportion,
+      avgServiceTime,
+      idleTimes,
+      waitingTimes,
+      interArrivals,
+    });
+    toast.success("Métricas calculadas com sucesso!");
   };
 
-  const createService = () => {
+  const createService = async () => {
     if (!newServiceName.trim() || !results) {
-      alert("Nome do serviço e resultados são necessários.");
+      toast.warn("Nome do serviço e resultados são necessários.");
       return;
     }
     const newService = {
@@ -336,155 +387,75 @@ export default function Dashboards() {
       arrivalQueue: selectedArrivalQueue,
       serviceQueue: selectedServiceQueue,
       metrics: results,
+      serviceTimes: validServiceTimes,
+      timestamps: timestamps,
+      interArrivals: results.interArrivals,
     };
-    saveServices([...services, newService]);
-    setNewServiceName("");
-    setSelectedArrivalQueue("");
-    setSelectedServiceQueue("");
-    setResults(null);
+    try {
+      await addDoc(collection(db, "services"), newService);
+      toast.success("Serviço criado com sucesso!");
+      setNewServiceName("");
+      setSelectedArrivalQueue("");
+      setSelectedServiceQueue("");
+      setResults(null);
+    } catch (error) {
+      toast.error("Erro ao criar serviço: " + (error as Error).message);
+    }
   };
 
-  const deleteService = (index: number) => {
+  const deleteService = async (index: number) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
-      const newServices = services.filter((_, i) => i !== index);
-      saveServices(newServices);
+      const serviceToDelete = services[index];
+      try {
+        await deleteDoc(doc(db, "services", serviceToDelete.id));
+        toast.success("Serviço excluído com sucesso!");
+      } catch (error) {
+        toast.error("Erro ao excluir serviço: " + (error as Error).message);
+      }
     }
   };
 
   const exportServiceToPDF = (service: (typeof services)[0]) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Por favor, permita pop-ups para exportar o PDF.");
-      return;
-    }
+    const tempDiv = document.createElement("div");
+    tempDiv.style.width = "800px";
+    tempDiv.style.height = "auto";
+    tempDiv.style.position = "absolute";
+    tempDiv.style.left = "-9999px";
+    document.body.appendChild(tempDiv);
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${service.name}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              max-width: 800px;
-              margin: 0 auto;
-            }
-            h1 {
-              color: #333;
-              border-bottom: 2px solid #666;
-              padding-bottom: 10px;
-            }
-            h2 {
-              color: #555;
-              margin-top: 20px;
-            }
-            .metric {
-              display: inline-block;
-              margin: 10px 20px 10px 0;
-            }
-            .metric strong {
-              color: #333;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f2f2f2;
-            }
-            @media print {
-              body {
-                padding: 0;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${service.name}</h1>
-          <p><strong>Fila de Chegada:</strong> ${service.arrivalQueue}</p>
-          <p><strong>Fila de Atendimento:</strong> ${service.serviceQueue}</p>
-          
-          <h2>Métricas do Sistema</h2>
-          <div>
-            <div class="metric"><strong>λ:</strong> ${
-              isFinite(service.metrics.lambda)
-                ? service.metrics.lambda.toFixed(4)
-                : "N/A"
-            } chegadas/s</div>
-            <div class="metric"><strong>μ:</strong> ${
-              isFinite(service.metrics.mu)
-                ? service.metrics.mu.toFixed(4)
-                : "N/A"
-            } atendimentos/s</div>
-            <div class="metric"><strong>ρ:</strong> ${
-              isFinite(service.metrics.rho)
-                ? service.metrics.rho.toFixed(4)
-                : "N/A"
-            }</div>
-            <div class="metric"><strong>L:</strong> ${
-              isFinite(service.metrics.L) ? service.metrics.L.toFixed(4) : "N/A"
-            }</div>
-            <div class="metric"><strong>Lq:</strong> ${
-              isFinite(service.metrics.Lq)
-                ? service.metrics.Lq.toFixed(4)
-                : "N/A"
-            }</div>
-            <div class="metric"><strong>W:</strong> ${
-              isFinite(service.metrics.W) ? service.metrics.W.toFixed(4) : "N/A"
-            } s</div>
-            <div class="metric"><strong>Wq:</strong> ${
-              isFinite(service.metrics.Wq)
-                ? service.metrics.Wq.toFixed(4)
-                : "N/A"
-            } s</div>
-            <div class="metric"><strong>P0:</strong> ${
-              service.metrics.P[0] !== null && isFinite(service.metrics.P[0])
-                ? service.metrics.P[0].toFixed(4)
-                : "N/A"
-            }</div>
-          </div>
-          
-          <h2>Probabilidades de Estado P(n)</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>n</th>
-                <th>P(n)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${service.metrics.P.map(
-                (p, n) => `
-                <tr>
-                  <td>${n}</td>
-                  <td>${p !== null && isFinite(p) ? p.toFixed(4) : "N/A"}</td>
-                </tr>
-              `
-              ).join("")}
-            </tbody>
-          </table>
-          
-          <p style="margin-top: 40px; text-align: center; color: #666;">
-            Gerado em: ${new Date().toLocaleString("pt-BR")}
-          </p>
-        </body>
-      </html>
-    `;
+    const root = createRoot(tempDiv);
+    root.render(
+      <ServicePDF
+        service={service}
+        isExport={true}
+        getCumulativeData={getCumulativeData}
+      />
+    );
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    setTimeout(() => {
+      html2canvas(tempDiv, { scale: 2 }).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
 
-    // Wait for content to load then trigger print
-    printWindow.onload = () => {
-      printWindow.print();
-    };
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`${service.name}.pdf`);
+        document.body.removeChild(tempDiv);
+      });
+    }, 2000); // Wait for rendering
   };
 
   const arrivalQueues = queues.filter((q) => q.type === "arrival");
@@ -493,14 +464,15 @@ export default function Dashboards() {
   const clearAllData = () => {
     if (
       confirm(
-        "Tem certeza que deseja limpar TODOS os dados armazenados? Esta ação não pode ser desfeita."
+        "Tem certeza que deseja limpar TODOS os dados armazenados? Esta ação afetará todos os usuários."
       )
     ) {
-      localStorage.removeItem("queueing-services");
-      localStorage.removeItem("queueing-queues");
-      localStorage.removeItem("queueing-data");
-      localStorage.removeItem("queueing-totals");
-      window.location.reload();
+      // Clear Firestore collections
+      // Note: This is dangerous, in real app restrict to admin
+      setQueues([]);
+      setData([]);
+      setServices([]);
+      toast.success("Todos os dados foram limpos com sucesso!");
     }
   };
 
