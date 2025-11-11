@@ -211,33 +211,41 @@ export default function Data() {
   };
 
   const deleteQueue = async (queueName: string) => {
-    console.log('deleteQueue called for', queueName);
-    if (confirm(`Tem certeza de que deseja excluir a fila "${queueName}" e todos os seus dados?`)) {
-      console.log('Confirmed, proceeding to delete');
+    console.log("deleteQueue called for", queueName);
+    if (
+      confirm(
+        `Tem certeza de que deseja excluir a fila "${queueName}" e todos os seus dados?`
+      )
+    ) {
+      console.log("Confirmed, proceeding to delete");
       try {
         // Delete from queues
         await deleteDoc(doc(db, "queues", queueName));
-        console.log('Deleted from queues');
+        console.log("Deleted from queues");
         // Delete from activeServices
         await deleteDoc(doc(db, "activeServices", queueName));
-        console.log('Deleted from activeServices');
+        console.log("Deleted from activeServices");
         // Delete from totals
         await deleteDoc(doc(db, "totals", queueName));
-        console.log('Deleted from totals');
+        console.log("Deleted from totals");
         // Delete all data for this queue
-        const dataToDelete = data.filter(d => d.queue === queueName);
-        console.log('Data to delete:', dataToDelete.length, 'records');
+        const dataToDelete = data.filter((d) => d.queue === queueName);
+        console.log("Data to delete:", dataToDelete.length, "records");
         const batch = writeBatch(db);
-        dataToDelete.forEach(record => batch.delete(doc(db, "data", record.id)));
+        dataToDelete.forEach((record) =>
+          batch.delete(doc(db, "data", record.id))
+        );
         await batch.commit();
-        console.log('Data records deleted');
-        toast.success(`Fila "${queueName}" e seus dados excluídos com sucesso.`);
+        console.log("Data records deleted");
+        toast.success(
+          `Fila "${queueName}" e seus dados excluídos com sucesso.`
+        );
       } catch (error) {
-        console.log('Error deleting queue:', error);
+        console.log("Error deleting queue:", error);
         toast.error("Erro ao excluir fila: " + (error as Error).message);
       }
     } else {
-      console.log('Deletion cancelled by user');
+      console.log("Deletion cancelled by user");
     }
   };
 

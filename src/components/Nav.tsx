@@ -57,6 +57,12 @@ export function Nav() {
             Painéis
           </Link>
           <Link
+            href="/simulations"
+            className="text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors duration-300 font-medium"
+          >
+            Simulações
+          </Link>
+          <Link
             href="/about"
             className="text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors duration-300 font-medium"
           >
@@ -146,6 +152,13 @@ export function Nav() {
               onClick={() => setIsMenuOpen(false)}
             >
               Painéis
+            </Link>
+            <Link
+              href="/simulations"
+              className="block text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors duration-300 font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Simulações
             </Link>
             <Link
               href="/about"

@@ -267,6 +267,7 @@ export default function Simulations() {
   const [customLambda, setCustomLambda] = useState(0.5);
   const [customMu, setCustomMu] = useState(1);
   const [customNumServers, setCustomNumServers] = useState(1);
+  const [customMaxN, setCustomMaxN] = useState(10);
   const [customMetrics, setCustomMetrics] = useState<QueueMetrics | null>(null);
 
   const [simLambda, setSimLambda] = useState(0.5);
@@ -286,7 +287,7 @@ export default function Simulations() {
       toast.error("Sistema instável (ρ >= 1).");
       return;
     }
-    const N = 1000; // Large number for summation approximation
+    const N = customMaxN; // Large number for summation approximation
     const C = new Array(N + 1).fill(0);
     C[0] = 1;
     for (let n = 1; n <= N; n++) {
@@ -502,7 +503,7 @@ export default function Simulations() {
               Simulação Personalizada
             </h2>
             <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl mb-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                   <label className="block text-[var(--text-primary)] mb-2">
                     <MathRenderer math="\lambda" /> (taxa de chegada)
@@ -540,6 +541,18 @@ export default function Simulations() {
                     onChange={(e) =>
                       setCustomNumServers(parseInt(e.target.value))
                     }
+                    className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--element-border)] rounded-lg text-[var(--text-primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[var(--text-primary)] mb-2">
+                    Número máximo de P(n)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={customMaxN}
+                    onChange={(e) => setCustomMaxN(parseInt(e.target.value))}
                     className="w-full px-3 py-2 bg-[var(--input-bg)] border border-[var(--element-border)] rounded-lg text-[var(--text-primary)]"
                   />
                 </div>
