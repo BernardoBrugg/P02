@@ -11,7 +11,7 @@ import {
   Bar,
   ResponsiveContainer,
 } from "recharts";
-import { Service } from "../lib/types";
+import { StoredService } from "../lib/types";
 
 interface ChartDataPoint {
   time: number;
@@ -20,11 +20,11 @@ interface ChartDataPoint {
 }
 
 interface ServiceCardProps {
-  service: Service;
+  service: StoredService;
   index: number;
   deleteService: (index: number) => void;
-  exportServiceToPDF: (service: Service) => void;
-  getCumulativeData: (service: Service) => ChartDataPoint[];
+  exportServiceToPDF: (service: StoredService) => void;
+  getCumulativeData: (service: StoredService) => ChartDataPoint[];
 }
 
 export const ServiceCard = React.memo(function ServiceCard({
@@ -53,7 +53,10 @@ export const ServiceCard = React.memo(function ServiceCard({
         const count = validServiceTimes.filter(
           (t) => t >= binStart && t < binEnd
         ).length;
-        data.push({ bin: `${binStart.toFixed(2)}-${binEnd.toFixed(2)}`, count });
+        data.push({
+          bin: `${binStart.toFixed(2)}-${binEnd.toFixed(2)}`,
+          count,
+        });
       }
       return data;
     } catch (error) {
@@ -115,7 +118,8 @@ export const ServiceCard = React.memo(function ServiceCard({
           <span className="font-semibold">W:</span>{" "}
           {service.metrics?.W != null && isFinite(service.metrics.W)
             ? service.metrics.W.toFixed(4)
-            : "N/A"} s
+            : "N/A"}{" "}
+          s
         </div>
         <div className="text-[var(--text-secondary)]">
           <span className="font-semibold">Wq:</span>{" "}
@@ -132,14 +136,16 @@ export const ServiceCard = React.memo(function ServiceCard({
         </div>
         <div className="text-[var(--text-secondary)]">
           <span className="font-semibold">Tempo Ocioso Médio:</span>{" "}
-          {service.metrics?.idleTime != null && isFinite(service.metrics.idleTime)
+          {service.metrics?.idleTime != null &&
+          isFinite(service.metrics.idleTime)
             ? service.metrics.idleTime.toFixed(4)
             : "N/A"}{" "}
           s
         </div>
         <div className="text-[var(--text-secondary)]">
           <span className="font-semibold">Proporção Ociosa:</span>{" "}
-          {service.metrics?.idleProportion != null && isFinite(service.metrics.idleProportion)
+          {service.metrics?.idleProportion != null &&
+          isFinite(service.metrics.idleProportion)
             ? service.metrics.idleProportion.toFixed(4)
             : "N/A"}
         </div>
@@ -149,11 +155,13 @@ export const ServiceCard = React.memo(function ServiceCard({
           Probabilidades P(n):
         </h4>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-          {service.metrics?.P?.map((p, n) => (
-            <div key={n}>
-              P({n}): {p != null && isFinite(p) ? p.toFixed(4) : "N/A"}
-            </div>
-          )) || <div>No P data available</div>}
+          {service.metrics?.P && service.metrics.P.length > 0
+            ? service.metrics.P.map((p, n) => (
+                <div key={n}>
+                  P({n}): {p != null && isFinite(p) ? p.toFixed(4) : "N/A"}
+                </div>
+              ))
+            : <div key="no-p">No P data available</div>}
         </div>
       </div>
       <div className="mt-4">
@@ -253,21 +261,26 @@ export const ServiceCard = React.memo(function ServiceCard({
             data={[
               {
                 name: "Tempo Médio de Serviço",
-                value: service.metrics?.avgServiceTime != null && isFinite(service.metrics.avgServiceTime)
-                  ? service.metrics.avgServiceTime
-                  : 0,
+                value:
+                  service.metrics?.avgServiceTime != null &&
+                  isFinite(service.metrics.avgServiceTime)
+                    ? service.metrics.avgServiceTime
+                    : 0,
               },
               {
                 name: "Tempo Médio de Espera",
-                value: service.metrics?.Wq != null && isFinite(service.metrics.Wq)
-                  ? service.metrics.Wq
-                  : 0,
+                value:
+                  service.metrics?.Wq != null && isFinite(service.metrics.Wq)
+                    ? service.metrics.Wq
+                    : 0,
               },
               {
                 name: "Tempo Médio Ocioso",
-                value: service.metrics?.idleTime != null && isFinite(service.metrics.idleTime)
-                  ? service.metrics.idleTime
-                  : 0,
+                value:
+                  service.metrics?.idleTime != null &&
+                  isFinite(service.metrics.idleTime)
+                    ? service.metrics.idleTime
+                    : 0,
               },
             ]}
           >
