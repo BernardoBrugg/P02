@@ -1,24 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Nav } from "../../components/Nav";
 import { QueueSelector } from "../../components/QueueSelector";
 import { MetricsResults } from "../../components/MetricsResults";
 import { ServiceCard } from "../../components/ServiceCard";
 import { db } from "../../lib/firebase";
-import {
-  collection,
-  onSnapshot,
-  addDoc,
-  doc,
-  deleteDoc,
-} from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { Service, QueueMetrics } from "../../lib/types";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
-import { ServicePDF } from "../../components/ServicePDF";
-import { createRoot } from "react-dom/client";
+import { QueueMetrics } from "../../lib/types";
 
 interface Record {
   id: string;
@@ -43,6 +33,7 @@ interface ChartDataPoint {
 }
 
 interface StoredService {
+  id: string;
   name: string;
   arrivalQueue: string;
   serviceQueue: string;
@@ -54,7 +45,7 @@ interface StoredService {
     Lq: number;
     W: number;
     Wq: number;
-    P: (number | null)[];
+    P: number[];
     idleTime: number;
     idleProportion: number;
     avgServiceTime: number;
@@ -63,41 +54,26 @@ interface StoredService {
   };
   serviceTimes: number[];
   timestamps: number[];
-  interArrivals: number[];
 }
 
 export default function Dashboards() {
-  // Clean up localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("queueing-services");
-      if (stored) {
-        try {
-          const services = JSON.parse(stored) as StoredService[];
-          const cleaned = services.map((service) => ({
-            ...service,
-            metrics: {
-              ...service.metrics,
-              P: service.metrics.P.map((p) =>
-                typeof p === "number" && isFinite(p) ? p : 0
-              ),
-            },
-          }));
-          localStorage.setItem("queueing-services", JSON.stringify(cleaned));
-        } catch (e) {
-          console.error("Error cleaning localStorage:", e);
-        }
-      }
-    }
-  }, []);
-
   const [queues, setQueues] = useState<
     { name: string; type: "arrival" | "service"; numAttendants?: number }[]
   >([]);
   const [data, setData] = useState<Record[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [validServiceTimes, setValidServiceTimes] = useState<number[]>([]);
-  const [timestamps, setTimestamps] = useState<number[]>([]);
+  const [services, setServices] = useState<StoredService[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("queueing-services");
+        setServices(stored ? JSON.parse(stored) : []);
+      } catch (e) {
+        console.error("Error parsing services from localStorage:", e);
+        localStorage.removeItem("queueing-services");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const unsubscribeQueues = onSnapshot(
@@ -120,38 +96,39 @@ export default function Dashboards() {
       );
       setData(d);
     });
-    const unsubscribeServices = onSnapshot(
-      collection(db, "services"),
-      (snapshot) => {
-        const s = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Service)
-        );
-        setServices(s);
-      }
-    );
     return () => {
       unsubscribeQueues();
       unsubscribeData();
-      unsubscribeServices();
     };
   }, []);
 
-  const [newServiceName, setNewServiceName] = useState("");
   const [selectedArrivalQueue, setSelectedArrivalQueue] = useState("");
   const [selectedServiceQueue, setSelectedServiceQueue] = useState("");
   const [results, setResults] = useState<QueueMetrics | null>(null);
   const [numServers, setNumServers] = useState(1);
   const [maxN, setMaxN] = useState(10);
+  const [newServiceName, setNewServiceName] = useState("");
 
-  const getCumulativeData = (service: (typeof services)[0]) => {
+  const getCumulativeData = useCallback((service: StoredService) => {
     const arrivalData = data
-      .filter((d) => d.queue === service.arrivalQueue && d.type === "arrival")
+      .filter(
+        (d) =>
+          d.queue === service.arrivalQueue &&
+          d.type === "arrival" &&
+          !isNaN(new Date(d.timestamp).getTime())
+      )
       .sort(
         (a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
     const serviceData = data
-      .filter((d) => d.queue === service.serviceQueue && d.type === "service")
+      .filter(
+        (d) =>
+          d.queue === service.serviceQueue &&
+          d.type === "service" &&
+          !isNaN(new Date(d.arriving).getTime()) &&
+          !isNaN(new Date(d.exiting).getTime())
+      )
       .sort(
         (a, b) =>
           new Date(a.arriving).getTime() - new Date(b.arriving).getTime()
@@ -167,8 +144,11 @@ export default function Dashboards() {
     let arrivals = 0;
     let departures = 0;
     const chartData: ChartDataPoint[] = [];
-    const startTime = events[0]?.time || 0;
-    events.forEach((e) => {
+    const startTime = events.length > 0 ? events[0].time : 0;
+    const maxPoints = 100;
+    const step = Math.max(1, Math.ceil(events.length / maxPoints));
+    for (let i = 0; i < events.length; i += step) {
+      const e = events[i];
       if (e.type === "arrival") arrivals++;
       else departures++;
       chartData.push({
@@ -176,286 +156,279 @@ export default function Dashboards() {
         arrivals,
         departures,
       });
-    });
+    }
     return chartData;
-  };
+  }, [data]);
 
   const calculateQueueMetrics = () => {
-    if (!selectedArrivalQueue || !selectedServiceQueue) {
-      toast.warn("Selecione filas de chegada e atendimento.");
-      return;
-    }
-    const arrivalData = data
-      .filter((d) => d.queue === selectedArrivalQueue && d.type === "arrival")
-      .sort((a, b) => a.element - b.element);
-    const serviceData = data
-      .filter((d) => d.queue === selectedServiceQueue && d.type === "service")
-      .sort((a, b) => a.element - b.element);
-
-    const arrivalElements = new Set(arrivalData.map((d) => d.element));
-    const serviceElements = new Set(serviceData.map((d) => d.element));
-    const commonElements = new Set(
-      [...arrivalElements].filter((e) => serviceElements.has(e))
-    );
-
-    const filteredArrivalData = arrivalData
-      .filter((d) => commonElements.has(d.element))
-      .sort((a, b) => a.element - b.element);
-    const filteredServiceData = serviceData
-      .filter((d) => commonElements.has(d.element))
-      .sort((a, b) => a.element - b.element);
-
-    if (filteredArrivalData.length === 0) {
-      toast.error(
-        "Não há elementos comuns válidos entre as filas de chegada e atendimento."
-      );
-      return;
-    }
-
-    // Compute inter-arrivals for lambda
-    const interArrivals = [];
-    for (let i = 1; i < filteredArrivalData.length; i++) {
-      const diff =
-        (new Date(filteredArrivalData[i].timestamp).getTime() -
-          new Date(filteredArrivalData[i - 1].timestamp).getTime()) /
-        1000;
-      // Only include non-zero inter-arrivals
-      if (diff > 0) {
-        interArrivals.push(diff);
+    try {
+      if (!selectedArrivalQueue || !selectedServiceQueue) {
+        toast.warn("Selecione filas de chegada e atendimento.");
+        return;
       }
-    }
+      const arrivalData = data
+        .filter((d) => d.queue === selectedArrivalQueue && d.type === "arrival")
+        .sort((a, b) => a.element - b.element);
+      const serviceData = data
+        .filter((d) => d.queue === selectedServiceQueue && d.type === "service")
+        .sort((a, b) => a.element - b.element);
 
-    if (interArrivals.length === 0) {
-      toast.error(
-        "Todos os tempos de chegada são idênticos. Por favor, registre chegadas com timestamps diferentes para calcular a taxa de chegada (λ)."
+      const arrivalElements = new Set(arrivalData.map((d) => d.element));
+      const serviceElements = new Set(serviceData.map((d) => d.element));
+      const commonElements = new Set(
+        [...arrivalElements].filter((e) => serviceElements.has(e))
       );
-      return;
-    }
 
-    const avgInterArrival =
-      interArrivals.reduce((a, b) => a + b, 0) / interArrivals.length;
-    const lambda = 1 / avgInterArrival;
+      const filteredArrivalData = arrivalData
+        .filter(
+          (d) =>
+            commonElements.has(d.element) &&
+            !isNaN(new Date(d.timestamp).getTime())
+        )
+        .sort((a, b) => a.element - b.element);
+      const filteredServiceData = serviceData
+        .filter(
+          (d) =>
+            commonElements.has(d.element) &&
+            !isNaN(new Date(d.arriving).getTime()) &&
+            !isNaN(new Date(d.exiting).getTime())
+        )
+        .sort((a, b) => a.element - b.element);
 
-    // Validate lambda
-    if (!isFinite(lambda) || lambda <= 0) {
-      toast.error(
-        "Erro ao calcular a taxa de chegada. Verifique os dados de entrada."
-      );
-      return;
-    }
-
-    // Compute service times for mu
-    const serviceTimes = filteredServiceData.map((s) => s.totalTime / 1000);
-
-    // Filter out zero or negative service times
-    const validServiceTimes = serviceTimes.filter((t) => t > 0);
-
-    if (validServiceTimes.length === 0) {
-      toast.error(
-        "Todos os tempos de serviço são zero ou inválidos. Por favor, registre atendimentos com duração adequada."
-      );
-      return;
-    }
-
-    setValidServiceTimes(validServiceTimes);
-    setTimestamps(
-      filteredServiceData.map((s) => new Date(s.arriving).getTime())
-    );
-
-    const avgServiceTime =
-      validServiceTimes.reduce((a, b) => a + b, 0) / validServiceTimes.length;
-    const mu = 1 / avgServiceTime;
-
-    // Validate mu
-    if (!isFinite(mu) || mu <= 0) {
-      toast.error(
-        "Erro ao calcular a taxa de atendimento. Verifique os dados de entrada."
-      );
-      return;
-    }
-    // Compute empirical waiting times
-    const waitingTimes = [];
-    for (let i = 0; i < filteredArrivalData.length; i++) {
-      const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
-      const serviceStart = new Date(filteredServiceData[i].arriving).getTime();
-      if (serviceStart < arrivalTime) {
+      if (filteredArrivalData.length === 0) {
         toast.error(
-          `Para o elemento ${filteredArrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
+          "Não há elementos comuns válidos entre as filas de chegada e atendimento."
         );
         return;
       }
-      waitingTimes.push((serviceStart - arrivalTime) / 1000);
-    }
-    const avgWq = waitingTimes.reduce((a, b) => a + b, 0) / waitingTimes.length;
-    const rho = lambda / (numServers * mu);
-    // Check if rho >= 1, which means the system is unstable
-    if (rho >= 1) {
-      toast.warn(
-        `O sistema está sobrecarregado (ρ = ${rho.toFixed(
-          4
-        )} ≥ 1). As fórmulas de estado estacionário não se aplicam. A fila cresce indefinidamente.`
-      );
-      // Continue calculating anyway
-    }
-    const factorial = (n: number): number =>
-      n <= 1 ? 1 : n * factorial(n - 1);
-    let Lq: number;
-    let Wq: number;
-    let L: number;
-    let W: number;
-    const P: number[] = [];
-    if (numServers === 1) {
-      // M/M/1
-      const P0 = 1 - rho;
-      for (let n = 0; n <= maxN; n++) {
-        P[n] = P0 * Math.pow(rho, n);
-      }
-      Lq = lambda * avgWq;
-      L = Lq + rho;
-      W = avgWq + 1 / mu;
-      Wq = avgWq;
-    } else {
-      // M/M/c
-      let sum = 0;
-      for (let k = 0; k < numServers; k++) {
-        sum += Math.pow(lambda / mu, k) / factorial(k);
-      }
-      sum +=
-        Math.pow(lambda / mu, numServers) / factorial(numServers) / (1 - rho);
-      const P0 = 1 / sum;
-      Lq =
-        (P0 * Math.pow(lambda / mu, numServers) * rho) /
-        (factorial(numServers - 1) * Math.pow(1 - rho, 2));
-      L = Lq + lambda / mu;
-      Wq = Lq / lambda;
-      W = Wq + 1 / mu;
-      for (let n = 0; n <= maxN; n++) {
-        if (n < numServers) {
-          P[n] = (Math.pow(lambda / mu, n) / factorial(n)) * P0;
-        } else {
-          P[n] =
-            (Math.pow(lambda / mu, n) /
-              (factorial(numServers) * Math.pow(numServers, n - numServers))) *
-            P0;
+
+      // Compute inter-arrivals for lambda
+      const interArrivals = [];
+      for (let i = 1; i < filteredArrivalData.length; i++) {
+        const diff =
+          (new Date(filteredArrivalData[i].timestamp).getTime() -
+            new Date(filteredArrivalData[i - 1].timestamp).getTime()) /
+          1000;
+        // Only include non-zero inter-arrivals
+        if (diff > 0) {
+          interArrivals.push(diff);
         }
       }
-    }
-    // Calculate idle time empirically
-    const idleTimes: number[] = [];
-    let serverBusyUntil = new Date(filteredArrivalData[0].timestamp).getTime();
-    let totalIdleTime = 0;
-    for (let i = 0; i < filteredServiceData.length; i++) {
-      const arrivalTime = new Date(filteredArrivalData[i].timestamp).getTime();
-      const serviceTime = filteredServiceData[i].totalTime; // in ms
-      const idleForThis = Math.max(0, arrivalTime - serverBusyUntil);
-      idleTimes.push(idleForThis / 1000);
-      totalIdleTime += idleForThis;
-      serverBusyUntil = Math.max(serverBusyUntil, arrivalTime) + serviceTime;
-    }
-    const idleTime = totalIdleTime / 1000;
-    const idleProportion =
-      idleTime /
-      ((serverBusyUntil -
-        new Date(filteredArrivalData[0].timestamp).getTime()) /
-        1000);
-    setResults({
-      lambda,
-      mu,
-      rho,
-      L,
-      Lq,
-      W,
-      Wq,
-      P,
-      idleTime,
-      idleProportion,
-      avgServiceTime,
-      idleTimes,
-      waitingTimes,
-      interArrivals,
-    });
-    toast.success("Métricas calculadas com sucesso!");
-  };
 
-  const createService = async () => {
+      if (interArrivals.length === 0) {
+        toast.error(
+          "Todos os tempos de chegada são idênticos. Por favor, registre chegadas com timestamps diferentes para calcular a taxa de chegada (λ)."
+        );
+        return;
+      }
+
+      const avgInterArrival =
+        interArrivals.reduce((a, b) => a + b, 0) / interArrivals.length;
+      const lambda = 1 / avgInterArrival;
+
+      // Validate lambda
+      if (!isFinite(lambda) || lambda <= 0) {
+        toast.error(
+          "Erro ao calcular a taxa de chegada. Verifique os dados de entrada."
+        );
+        return;
+      }
+
+      // Compute service times for mu
+      const serviceTimes = filteredServiceData.map((s) => s.totalTime / 1000);
+
+      // Filter out zero or negative service times
+      const validServiceTimes = serviceTimes.filter((t) => t > 0);
+
+      if (validServiceTimes.length === 0) {
+        toast.error(
+          "Todos os tempos de serviço são zero ou inválidos. Por favor, registre atendimentos com duração adequada."
+        );
+        return;
+      }
+
+      const avgServiceTime =
+        validServiceTimes.reduce((a, b) => a + b, 0) / validServiceTimes.length;
+      const mu = 1 / avgServiceTime;
+
+      // Validate mu
+      if (!isFinite(mu) || mu <= 0) {
+        toast.error(
+          "Erro ao calcular a taxa de atendimento. Verifique os dados de entrada."
+        );
+        return;
+      }
+      // Compute empirical waiting times
+      const waitingTimes = [];
+      for (let i = 0; i < filteredArrivalData.length; i++) {
+        const arrivalTime = new Date(
+          filteredArrivalData[i].timestamp
+        ).getTime();
+        const serviceStart = new Date(
+          filteredServiceData[i].arriving
+        ).getTime();
+        if (serviceStart < arrivalTime) {
+          toast.error(
+            `Para o elemento ${filteredArrivalData[i].element}, o tempo de início do atendimento deve ser posterior ao tempo de chegada.`
+          );
+          return;
+        }
+        waitingTimes.push((serviceStart - arrivalTime) / 1000);
+      }
+      const avgWq =
+        waitingTimes.reduce((a, b) => a + b, 0) / waitingTimes.length;
+      const rho = lambda / (numServers * mu);
+      // Check if rho >= 1, which means the system is unstable
+      if (rho >= 1) {
+        toast.warn(
+          `O sistema está sobrecarregado (ρ = ${rho.toFixed(
+            4
+          )} ≥ 1). As fórmulas de estado estacionário não se aplicam. A fila cresce indefinidamente.`
+        );
+        // Continue calculating anyway
+      }
+
+      // New formulas for general birth-death process
+      const lambdaK = (k: number) => lambda; // Constant arrivals
+      const muK = (k: number) => Math.min(k, numServers) * mu; // Service rate up to numServers
+
+      const C: number[] = [1]; // C_0 = 1
+      for (let n = 1; n <= maxN; n++) {
+        C[n] = C[n - 1] * (lambdaK(n) / muK(n));
+      }
+
+      const sumC = C.slice(1).reduce((sum, c) => sum + c, 0); // sum_{n=1}^∞ C_n (truncated)
+      const P0 = 1 / (1 + sumC);
+
+      const P: number[] = [];
+      for (let n = 0; n <= maxN; n++) {
+        P[n] = C[n] * P0;
+      }
+
+      // Validate P
+      if (P.some(p => !isFinite(p))) {
+        toast.error("Métricas inválidas devido a sistema instável (probabilidades infinitas).");
+        return;
+      }
+
+      // L = sum_{n=0}^∞ n * P_n
+      const L = P.reduce((sum, p, n) => sum + n * p, 0);
+
+      // Lq = sum_{n=s}^∞ (n - s) * P_n, where s = numServers
+      const Lq = P.slice(numServers).reduce(
+        (sum, p, idx) => sum + (idx + numServers - numServers) * p,
+        0
+      );
+
+      // λ (already calculated as lambda)
+
+      // W = L / λ
+      const W = L / lambda;
+
+      // Wq = Lq / λ
+      const Wq = Lq / lambda;
+
+      // Validate key metrics
+      if (!isFinite(L) || !isFinite(Lq) || !isFinite(W) || !isFinite(Wq)) {
+        toast.error("Métricas inválidas devido a dados instáveis.");
+        return;
+      }
+
+      // Calculate idle time empirically
+      const idleTimes: number[] = [];
+      let serverBusyUntil = new Date(
+        filteredArrivalData[0].timestamp
+      ).getTime();
+      let totalIdleTime = 0;
+      for (let i = 0; i < filteredServiceData.length; i++) {
+        const arrivalTime = new Date(
+          filteredArrivalData[i].timestamp
+        ).getTime();
+        const serviceTime = filteredServiceData[i].totalTime; // in ms
+        const idleForThis = Math.max(0, arrivalTime - serverBusyUntil);
+        idleTimes.push(idleForThis / 1000);
+        totalIdleTime += idleForThis;
+        serverBusyUntil = Math.max(serverBusyUntil, arrivalTime) + serviceTime;
+      }
+      const idleTime = totalIdleTime / 1000;
+      const idleProportion =
+        idleTime /
+        ((serverBusyUntil -
+          new Date(filteredArrivalData[0].timestamp).getTime()) /
+          1000);
+      setResults({
+        lambda,
+        mu,
+        rho,
+        L,
+        Lq,
+        W,
+        Wq,
+        P,
+        idleTime,
+        idleProportion,
+        avgServiceTime,
+        idleTimes,
+        waitingTimes,
+        interArrivals,
+        serviceTimes: validServiceTimes,
+        timestamps: filteredArrivalData.map(d => new Date(d.timestamp).getTime()),
+      });
+      toast.success("Métricas calculadas com sucesso!");
+    } catch (error) {
+      console.error("Erro ao calcular métricas:", error);
+      toast.error("Erro ao calcular métricas.");
+    }
+  };
+  const createService = () => {
     if (!newServiceName.trim() || !results) {
       toast.warn("Nome do serviço e resultados são necessários.");
       return;
     }
-    const newService = {
+    if (services.length >= 1) {
+      toast.warn("Apenas 1 serviço pode ser criado por vez. Exclua o serviço atual para adicionar outro.");
+      return;
+    }
+    const { interArrivals, serviceTimes, timestamps, ...metricsWithoutInter } = results;
+    const newService: StoredService = {
+      id: `service-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: newServiceName.trim(),
       arrivalQueue: selectedArrivalQueue,
       serviceQueue: selectedServiceQueue,
-      metrics: results,
-      serviceTimes: validServiceTimes,
+      metrics: metricsWithoutInter,
+      serviceTimes: serviceTimes,
       timestamps: timestamps,
-      interArrivals: results.interArrivals,
     };
+    const updatedServices = [...services, newService];
     try {
-      await addDoc(collection(db, "services"), newService);
+      localStorage.setItem("queueing-services", JSON.stringify(updatedServices));
+      setServices(updatedServices);
       toast.success("Serviço criado com sucesso!");
-      setNewServiceName("");
-      setSelectedArrivalQueue("");
-      setSelectedServiceQueue("");
-      setResults(null);
-    } catch (error) {
-      toast.error("Erro ao criar serviço: " + (error as Error).message);
+    } catch (e) {
+      toast.error("Erro ao salvar serviço: armazenamento local cheio.");
+      return;
     }
+    setNewServiceName("");
+    setSelectedArrivalQueue("");
+    setSelectedServiceQueue("");
+    setResults(null);
   };
 
-  const deleteService = async (index: number) => {
+  const deleteService = (index: number) => {
     if (confirm("Tem certeza que deseja excluir este serviço?")) {
-      const serviceToDelete = services[index];
-      try {
-        await deleteDoc(doc(db, "services", serviceToDelete.id));
-        toast.success("Serviço excluído com sucesso!");
-      } catch (error) {
-        toast.error("Erro ao excluir serviço: " + (error as Error).message);
-      }
+      const updatedServices = services.filter((_, i) => i !== index);
+      setServices(updatedServices);
+      localStorage.setItem(
+        "queueing-services",
+        JSON.stringify(updatedServices)
+      );
+      toast.success("Serviço excluído com sucesso!");
     }
   };
 
-  const exportServiceToPDF = (service: (typeof services)[0]) => {
-    const tempDiv = document.createElement("div");
-    tempDiv.style.width = "800px";
-    tempDiv.style.height = "auto";
-    tempDiv.style.position = "absolute";
-    tempDiv.style.left = "-9999px";
-    document.body.appendChild(tempDiv);
-
-    const root = createRoot(tempDiv);
-    root.render(
-      <ServicePDF
-        service={service}
-        isExport={true}
-        getCumulativeData={getCumulativeData}
-      />
-    );
-
-    setTimeout(() => {
-      html2canvas(tempDiv, { scale: 2 }).then((canvas) => {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const imgWidth = 210;
-        const pageHeight = 295;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-
-        pdf.save(`${service.name}.pdf`);
-        document.body.removeChild(tempDiv);
-      });
-    }, 2000); // Wait for rendering
+  const exportServiceToPDF = () => {
+    // Implement PDF export if needed
+    toast.info("Export to PDF not implemented yet.");
   };
 
   const arrivalQueues = queues.filter((q) => q.type === "arrival");
@@ -472,6 +445,7 @@ export default function Dashboards() {
       setQueues([]);
       setData([]);
       setServices([]);
+      localStorage.removeItem("queueing-services");
       toast.success("Todos os dados foram limpos com sucesso!");
     }
   };
@@ -519,7 +493,7 @@ export default function Dashboards() {
           <div className="grid grid-cols-1 gap-8">
             {services.map((service, index) => (
               <ServiceCard
-                key={index}
+                key={service.id}
                 service={service}
                 index={index}
                 deleteService={deleteService}

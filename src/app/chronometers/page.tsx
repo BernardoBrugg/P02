@@ -8,11 +8,14 @@ import { QueueItem } from "../../components/QueueItem";
 import { db } from "../../lib/firebase";
 import {
   collection,
-  onSnapshot,
   addDoc,
   doc,
   setDoc,
   deleteDoc,
+  getDocs,
+  query,
+  limit,
+  orderBy,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 
@@ -38,6 +41,7 @@ export default function Chronometers() {
   const [numAttendants, setNumAttendants] = useState(1);
   const [, setData] = useState<Record[]>([]);
   const [queueTotals, setQueueTotals] = useState<{ [key: string]: number }>({});
+  const [, setLoading] = useState(true);
 
   const [currentAppTimeMs, setCurrentAppTimeMs] = useState(() => Date.now());
   const currentAppTime = useMemo(
@@ -52,40 +56,41 @@ export default function Chronometers() {
     return () => clearInterval(interval);
   }, []);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const queuesQuery = query(collection(db, "queues"), limit(10));
+      const queuesSnapshot = await getDocs(queuesQuery);
+      const queuesData = queuesSnapshot.docs.map((doc) => doc.data() as {
+        name: string;
+        type: "arrival" | "service";
+        numAttendants?: number;
+      });
+      setQueues(queuesData);
+
+      const dataQuery = query(collection(db, "data"), orderBy("timestamp", "desc"), limit(10));
+      const dataSnapshot = await getDocs(dataQuery);
+      const dataRecords = dataSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Record));
+      setData(dataRecords);
+
+      const totalsQuery = query(collection(db, "totals"), limit(5));
+      const totalsSnapshot = await getDocs(totalsQuery);
+      const t: { [key: string]: number } = {};
+      totalsSnapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
+      setQueueTotals(t);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Erro ao carregar dados.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const unsubscribeQueues = onSnapshot(
-      collection(db, "queues"),
-      (snapshot) => {
-        const q = snapshot.docs.map(
-          (doc) =>
-            doc.data() as {
-              name: string;
-              type: "arrival" | "service";
-              numAttendants?: number;
-            }
-        );
-        setQueues(q);
-      }
-    );
-    const unsubscribeData = onSnapshot(collection(db, "data"), (snapshot) => {
-      const d = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Record)
-      );
-      setData(d);
-    });
-    const unsubscribeTotals = onSnapshot(
-      collection(db, "totals"),
-      (snapshot) => {
-        const t: { [key: string]: number } = {};
-        snapshot.docs.forEach((doc) => (t[doc.id] = doc.data().total));
-        setQueueTotals(t);
-      }
-    );
-    return () => {
-      unsubscribeQueues();
-      unsubscribeData();
-      unsubscribeTotals();
-    };
+    fetchData();
   }, []);
 
   const addQueue = async () => {
@@ -133,13 +138,24 @@ export default function Chronometers() {
 
   const getNextElement = (queue: string) => {
     const current = queueTotals[queue] || 0;
-    const next = current + 1;
-    setDoc(doc(db, "totals", queue), { total: next });
-    return next;
+    try {
+      const next = current + 1;
+      setDoc(doc(db, "totals", queue), { total: next });
+      return next;
+    } catch (error) {
+      console.error("Erro ao atualizar total da fila:", error);
+      toast.error("Erro ao atualizar total da fila.");
+      return current;
+    }
   };
 
   const recordEvent = (record: Omit<Record, "id">) => {
-    addDoc(collection(db, "data"), record);
+    try {
+      addDoc(collection(db, "data"), record);
+    } catch (error) {
+      console.error("Erro ao registrar evento:", error);
+      toast.error("Erro ao registrar evento.");
+    }
   };
 
   return (
