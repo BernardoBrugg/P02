@@ -13,6 +13,8 @@ export interface QueueMetrics {
   waitingTimes: number[];
   idleTimes: number[];
   interArrivals: number[];
+  serviceTimes: number[];
+  timestamps: number[];
 }
 
 export interface Service {

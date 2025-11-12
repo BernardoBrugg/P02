@@ -27,7 +27,7 @@ interface ServiceCardProps {
   getCumulativeData: (service: Service) => ChartDataPoint[];
 }
 
-export function ServiceCard({
+export const ServiceCard = React.memo(function ServiceCard({
   service,
   index,
   deleteService,
@@ -61,6 +61,11 @@ export function ServiceCard({
       return [];
     }
   }, [service.serviceTimes]);
+
+  const cumulativeData = React.useMemo(
+    () => getCumulativeData(service),
+    [service, getCumulativeData]
+  );
 
   return (
     <div className="bg-[var(--element-bg)] border border-[var(--element-border)] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
@@ -183,7 +188,7 @@ export function ServiceCard({
           Gráfico Cumulativo
         </h4>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart width={800} height={300} data={getCumulativeData(service)}>
+          <LineChart width={800} height={300} data={cumulativeData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="time"
@@ -341,4 +346,4 @@ export function ServiceCard({
       </div>
     </div>
   );
-}
+});

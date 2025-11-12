@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Nav } from "../../components/Nav";
 import { QueueSelector } from "../../components/QueueSelector";
 import { MetricsResults } from "../../components/MetricsResults";
@@ -51,11 +51,9 @@ interface StoredService {
     avgServiceTime: number;
     idleTimes: number[];
     waitingTimes: number[];
-    interArrivals: number[];
   };
   serviceTimes: number[];
   timestamps: number[];
-  interArrivals: number[];
 }
 
 export default function Dashboards() {
@@ -63,13 +61,19 @@ export default function Dashboards() {
     { name: string; type: "arrival" | "service"; numAttendants?: number }[]
   >([]);
   const [data, setData] = useState<Record[]>([]);
-  const [services, setServices] = useState<StoredService[]>(() => {
+  const [services, setServices] = useState<StoredService[]>([]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("queueing-services");
-      return stored ? JSON.parse(stored) : [];
+      try {
+        const stored = localStorage.getItem("queueing-services");
+        setServices(stored ? JSON.parse(stored) : []);
+      } catch (e) {
+        console.error("Error parsing services from localStorage:", e);
+        localStorage.removeItem("queueing-services");
+      }
     }
-    return [];
-  });
+  }, []);
 
   useEffect(() => {
     const unsubscribeQueues = onSnapshot(
@@ -105,7 +109,7 @@ export default function Dashboards() {
   const [maxN, setMaxN] = useState(10);
   const [newServiceName, setNewServiceName] = useState("");
 
-  const getCumulativeData = (service: StoredService) => {
+  const getCumulativeData = useCallback((service: StoredService) => {
     const arrivalData = data
       .filter(
         (d) =>
@@ -141,7 +145,10 @@ export default function Dashboards() {
     let departures = 0;
     const chartData: ChartDataPoint[] = [];
     const startTime = events.length > 0 ? events[0].time : 0;
-    events.forEach((e) => {
+    const maxPoints = 100;
+    const step = Math.max(1, Math.ceil(events.length / maxPoints));
+    for (let i = 0; i < events.length; i += step) {
+      const e = events[i];
       if (e.type === "arrival") arrivals++;
       else departures++;
       chartData.push({
@@ -149,9 +156,9 @@ export default function Dashboards() {
         arrivals,
         departures,
       });
-    });
+    }
     return chartData;
-  };
+  }, [data]);
 
   const calculateQueueMetrics = () => {
     try {
@@ -298,6 +305,12 @@ export default function Dashboards() {
         P[n] = C[n] * P0;
       }
 
+      // Validate P
+      if (P.some(p => !isFinite(p))) {
+        toast.error("Métricas inválidas devido a sistema instável (probabilidades infinitas).");
+        return;
+      }
+
       // L = sum_{n=0}^∞ n * P_n
       const L = P.reduce((sum, p, n) => sum + n * p, 0);
 
@@ -314,6 +327,12 @@ export default function Dashboards() {
 
       // Wq = Lq / λ
       const Wq = Lq / lambda;
+
+      // Validate key metrics
+      if (!isFinite(L) || !isFinite(Lq) || !isFinite(W) || !isFinite(Wq)) {
+        toast.error("Métricas inválidas devido a dados instáveis.");
+        return;
+      }
 
       // Calculate idle time empirically
       const idleTimes: number[] = [];
@@ -352,6 +371,8 @@ export default function Dashboards() {
         idleTimes,
         waitingTimes,
         interArrivals,
+        serviceTimes: validServiceTimes,
+        timestamps: filteredArrivalData.map(d => new Date(d.timestamp).getTime()),
       });
       toast.success("Métricas calculadas com sucesso!");
     } catch (error) {
@@ -364,20 +385,29 @@ export default function Dashboards() {
       toast.warn("Nome do serviço e resultados são necessários.");
       return;
     }
+    if (services.length >= 1) {
+      toast.warn("Apenas 1 serviço pode ser criado por vez. Exclua o serviço atual para adicionar outro.");
+      return;
+    }
+    const { interArrivals, serviceTimes, timestamps, ...metricsWithoutInter } = results;
     const newService: StoredService = {
       id: `service-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: newServiceName.trim(),
       arrivalQueue: selectedArrivalQueue,
       serviceQueue: selectedServiceQueue,
-      metrics: results,
-      serviceTimes: [], // Not available from direct calculation
-      timestamps: [],
-      interArrivals: results.interArrivals,
+      metrics: metricsWithoutInter,
+      serviceTimes: serviceTimes,
+      timestamps: timestamps,
     };
     const updatedServices = [...services, newService];
-    setServices(updatedServices);
-    localStorage.setItem("queueing-services", JSON.stringify(updatedServices));
-    toast.success("Serviço criado com sucesso!");
+    try {
+      localStorage.setItem("queueing-services", JSON.stringify(updatedServices));
+      setServices(updatedServices);
+      toast.success("Serviço criado com sucesso!");
+    } catch (e) {
+      toast.error("Erro ao salvar serviço: armazenamento local cheio.");
+      return;
+    }
     setNewServiceName("");
     setSelectedArrivalQueue("");
     setSelectedServiceQueue("");
@@ -463,7 +493,7 @@ export default function Dashboards() {
           <div className="grid grid-cols-1 gap-8">
             {services.map((service, index) => (
               <ServiceCard
-                key={index}
+                key={service.id}
                 service={service}
                 index={index}
                 deleteService={deleteService}
