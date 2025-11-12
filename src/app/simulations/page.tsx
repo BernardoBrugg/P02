@@ -207,7 +207,7 @@ export default function Simulations() {
               ...service.metrics,
               numServers: service.metrics.numServers || 1,
               P: service.metrics.P.map((p) =>
-                typeof p === "number" && isFinite(p) ? p : 0
+                typeof p === "number" && isFinite(p) && p !== null ? p : 0
               ),
             },
           }));
@@ -235,7 +235,7 @@ export default function Simulations() {
             metrics: {
               ...service.metrics,
               P: service.metrics.P.map((p) =>
-                typeof p === "number" && isFinite(p) ? p : 0
+                typeof p === "number" && isFinite(p) && p !== null ? p : 0
               ),
             },
           }))
@@ -444,38 +444,46 @@ export default function Simulations() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
                       <MathRenderer math="\lambda" />:{" "}
-                      {service.metrics.lambda.toFixed(4)} chegadas/s
+                      {isFinite(service.metrics.lambda)
+                        ? service.metrics.lambda.toFixed(4)
+                        : "N/A"}{" "}
+                      chegadas/s
                     </div>
                     <div>
                       <MathRenderer math="\mu" />:{" "}
-                      {service.metrics.mu.toFixed(4)} atendimentos/s
+                      {isFinite(service.metrics.mu)
+                        ? service.metrics.mu.toFixed(4)
+                        : "N/A"}{" "}
+                      atendimentos/s
                     </div>
                     <div>
                       <MathRenderer math="\rho" />:{" "}
-                      {service.metrics.rho.toFixed(4)}
+                      {isFinite(service.metrics.rho)
+                        ? service.metrics.rho.toFixed(4)
+                        : "N/A"}
                     </div>
-                    <div>L: {service.metrics.L.toFixed(4)}</div>
+                    <div>L: {isFinite(service.metrics.L) ? service.metrics.L.toFixed(4) : "N/A"}</div>
                     <div>
                       <MathRenderer math="L_q" />:{" "}
-                      {service.metrics.Lq.toFixed(4)}
+                      {isFinite(service.metrics.Lq) ? service.metrics.Lq.toFixed(4) : "N/A"}
                     </div>
-                    <div>W: {service.metrics.W.toFixed(4)} s</div>
+                    <div>W: {isFinite(service.metrics.W) ? service.metrics.W.toFixed(4) : "N/A"} s</div>
                     <div>
                       <MathRenderer math="W_q" />:{" "}
-                      {service.metrics.Wq.toFixed(4)} s
+                      {isFinite(service.metrics.Wq) ? service.metrics.Wq.toFixed(4) : "N/A"} s
                     </div>
-                    <div>P0: {service.metrics.P[0].toFixed(4)}</div>
+                    <div>P0: {service.metrics.P?.[0] !== null && isFinite(service.metrics.P?.[0]) ? service.metrics.P[0].toFixed(4) : "N/A"}</div>
                   </div>
                   <div className="mb-4">
                     <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
                       Probabilidades P(n):
                     </h4>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {service.metrics.P.map((p, n) => (
+                      {service.metrics.P?.map((p, n) => (
                         <div key={n}>
-                          P({n}): {p.toFixed(4)}
+                          P({n}): {p !== null && isFinite(p) ? p.toFixed(4) : "N/A"}
                         </div>
-                      ))}
+                      )) || <div>No P data available</div>}
                     </div>
                   </div>
                   <div className="mt-4">
@@ -485,7 +493,7 @@ export default function Simulations() {
                     <BarChart
                       width={800}
                       height={300}
-                      data={service.metrics.P.map((p, n) => ({ n, p }))}
+                      data={service.metrics.P?.map((p, n) => ({ n, p: p !== null ? p : 0 })) || []}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="n" />
@@ -572,24 +580,24 @@ export default function Simulations() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <MathRenderer math="\lambda" />:{" "}
-                    {customMetrics.lambda.toFixed(4)}
+                    {isFinite(customMetrics.lambda) ? customMetrics.lambda.toFixed(4) : "N/A"}
                   </div>
                   <div>
-                    <MathRenderer math="\mu" />: {customMetrics.mu.toFixed(4)}
+                    <MathRenderer math="\mu" />: {isFinite(customMetrics.mu) ? customMetrics.mu.toFixed(4) : "N/A"}
                   </div>
                   <div>
-                    <MathRenderer math="\rho" />: {customMetrics.rho.toFixed(4)}
+                    <MathRenderer math="\rho" />: {isFinite(customMetrics.rho) ? customMetrics.rho.toFixed(4) : "N/A"}
                   </div>
                   <div>Servidores: {customMetrics.numServers}</div>
-                  <div>L: {customMetrics.L.toFixed(4)}</div>
+                  <div>L: {isFinite(customMetrics.L) ? customMetrics.L.toFixed(4) : "N/A"}</div>
                   <div>
-                    <MathRenderer math="L_q" />: {customMetrics.Lq.toFixed(4)}
+                    <MathRenderer math="L_q" />: {isFinite(customMetrics.Lq) ? customMetrics.Lq.toFixed(4) : "N/A"}
                   </div>
-                  <div>W: {customMetrics.W.toFixed(4)} s</div>
+                  <div>W: {isFinite(customMetrics.W) ? customMetrics.W.toFixed(4) : "N/A"} s</div>
                   <div>
-                    <MathRenderer math="W_q" />: {customMetrics.Wq.toFixed(4)} s
+                    <MathRenderer math="W_q" />: {isFinite(customMetrics.Wq) ? customMetrics.Wq.toFixed(4) : "N/A"} s
                   </div>
-                  <div>P0: {customMetrics.P[0].toFixed(4)}</div>
+                  <div>P0: {customMetrics.P[0] !== null && isFinite(customMetrics.P[0]) ? customMetrics.P[0].toFixed(4) : "N/A"}</div>
                 </div>
                 <div className="mb-4">
                   <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
@@ -598,7 +606,7 @@ export default function Simulations() {
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                     {customMetrics.P.map((p, n) => (
                       <div key={n}>
-                        P({n}): {p.toFixed(4)}
+                        P({n}): {p !== null && isFinite(p) ? p.toFixed(4) : "N/A"}
                       </div>
                     ))}
                   </div>
@@ -610,7 +618,7 @@ export default function Simulations() {
                   <BarChart
                     width={800}
                     height={300}
-                    data={customMetrics.P.map((p, n) => ({ n, p }))}
+                    data={customMetrics.P.map((p, n) => ({ n, p: p !== null ? p : 0 }))}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="n" />
